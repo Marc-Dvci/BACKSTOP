@@ -1,0 +1,97 @@
+{
+  "alpha": 0.05,
+  "m": 99,
+  "tMax": 40,
+  "cells": 8,
+  "reps": 120,
+  "rows": [
+    {
+      "eps": 0.1,
+      "n": 64,
+      "queriesPerRound": 512,
+      "crossings": 0,
+      "reps": 120,
+      "power": 0,
+      "medianDelay": null,
+      "benignCrossings": 0,
+      "benignReps": 60
+    },
+    {
+      "eps": 0.05,
+      "n": 64,
+      "queriesPerRound": 512,
+      "crossings": 0,
+      "reps": 120,
+      "power": 0,
+      "medianDelay": null,
+      "benignCrossings": 0,
+      "benignReps": 60
+    },
+    {
+      "eps": 0.1,
+      "n": 128,
+      "queriesPerRound": 1024,
+      "crossings": 118,
+      "reps": 120,
+      "power": 0.9833333333333333,
+      "medianDelay": 20,
+      "benignCrossings": 0,
+      "benignReps": 60
+    },
+    {
+      "eps": 0.05,
+      "n": 128,
+      "queriesPerRound": 1024,
+      "crossings": 0,
+      "reps": 120,
+      "power": 0,
+      "medianDelay": null,
+      "benignCrossings": 0,
+      "benignReps": 60
+    },
+    {
+      "eps": 0.1,
+      "n": 256,
+      "queriesPerRound": 2048,
+      "crossings": 120,
+      "reps": 120,
+      "power": 1,
+      "medianDelay": 10,
+      "benignCrossings": 0,
+      "benignReps": 60
+    },
+    {
+      "eps": 0.05,
+      "n": 256,
+      "queriesPerRound": 2048,
+      "crossings": 0,
+      "reps": 120,
+      "power": 0,
+      "medianDelay": null,
+      "benignCrossings": 0,
+      "benignReps": 60
+    },
+    {
+      "eps": 0.1,
+      "n": 512,
+      "queriesPerRound": 4096,
+      "crossings": 120,
+      "reps": 120,
+      "power": 1,
+      "medianDelay": 6,
+      "benignCrossings": 0,
+      "benignReps": 60
+    },
+    {
+      "eps": 0.05,
+      "n": 512,
+      "queriesPerRound": 4096,
+      "crossings": 120,
+      "reps": 120,
+      "power": 1,
+      "medianDelay": 19,
+      "benignCrossings": 0,
+      "benignReps": 60
+    }
+  ]
+}

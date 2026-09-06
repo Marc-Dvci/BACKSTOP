@@ -1,0 +1,13 @@
+{
+  "name": "backstop-cre",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "simulate": "cre workflow simulate --target monad-testnet",
+    "deploy": "cre workflow deploy --target monad-testnet"
+  },
+  "dependencies": {
+    "@backstop/core": "workspace:*"
+  }
+}

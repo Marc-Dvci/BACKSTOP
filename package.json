@@ -1,0 +1,28 @@
+{
+  "name": "backstop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Capital-backed verification protocol for hosted AI inference",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' build",
+    "test": "pnpm -r --filter './packages/**' test",
+    "typecheck": "pnpm -r exec tsc --noEmit",
+    "gate-zero": "pnpm --filter @backstop/core run gate-zero",
+    "vectors": "pnpm --filter @backstop/core run vectors",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test -vv",
+    "web:dev": "pnpm --filter @backstop/web dev",
+    "demo": "node scripts/demo.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3",
+    "viem": "^2.22.8",
+    "vitest": "^3.0.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

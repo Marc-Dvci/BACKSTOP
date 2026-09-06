@@ -1,0 +1,101 @@
+{
+  "schema": "backstop/attestation@1",
+  "version": 1,
+  "endpointId": "0xbf31ba8ea4b5af592a25744df7b35c7956910f7b470e378aceb733ef6a6423f6",
+  "issuer": {
+    "name": "BACKSTOP reference issuer",
+    "agentId": "pending"
+  },
+  "endpoint": {
+    "url": {
+      "value": "http://127.0.0.1:8080/v1",
+      "provenance": "issuer_observed"
+    },
+    "modelSlug": {
+      "value": "local",
+      "provenance": "issuer_observed"
+    }
+  },
+  "modelIdentity": {
+    "checkpointDigest": {
+      "value": "unsloth/Qwen3-1.7B-GGUF",
+      "provenance": "provider_declared"
+    },
+    "quantizationRecipe": {
+      "value": "BF16",
+      "provenance": "provider_declared"
+    }
+  },
+  "servingStack": {
+    "engine": {
+      "value": "llama.cpp server",
+      "provenance": "provider_declared"
+    }
+  },
+  "sampling": {
+    "temperature": 1,
+    "topP": 1,
+    "maxTokens": 24,
+    "seedHandling": "absent",
+    "allowFallbacks": false,
+    "concurrency": 8,
+    "credentialClass": "probe_scoped",
+    "normalizationSpec": "backstop/normalize@1"
+  },
+  "alphaRay": "50000000000000002382364672",
+  "lambdaRay": "500000000000000000000000000",
+  "m": 99,
+  "n": 96,
+  "nR": 8000,
+  "tMax": 40,
+  "cellsPerRound": 8,
+  "cellIds": [
+    "digit.en",
+    "digit.fr",
+    "digit.es",
+    "digit.zh",
+    "letter.en",
+    "letter.fr",
+    "letter.es",
+    "letter.zh"
+  ],
+  "mixtureIds": [
+    "cfg-bf16",
+    "cfg-q8_0",
+    "mix-50"
+  ],
+  "poolRoot": "0xf8b230f540a5b6ced9b3c2ee590125064111846d5500fbcd7587f110183a7104",
+  "seedChainRoot": "0x27f44f79f309c62231144f4091d1285e087281c8b7198cc94a12c464ee645924",
+  "probeSeed": "0x1111111111111111111111111111111111111111111111111111111111111111",
+  "canonicalArithmeticHash": "0x396a8c70eed71797834c7de8965f1c74fccfd38a8046d9806fb12bcc8bb55366",
+  "normalizationImplHash": "0x45abe0761f866e0c8752883124eca99a7a15c9b21294147e61553a86d5eddaff",
+  "baseUrl": "http://127.0.0.1:8080/v1",
+  "model": "local",
+  "envelope": {
+    "elements": [
+      {
+        "id": "cfg-bf16",
+        "precision": "BF16",
+        "engine": "llama.cpp server"
+      },
+      {
+        "id": "cfg-q8_0",
+        "precision": "Q8_0",
+        "engine": "llama.cpp server"
+      }
+    ],
+    "mixtureSet": [
+      {
+        "id": "mix-50",
+        "weights": {
+          "cfg-bf16": "0.5",
+          "cfg-q8_0": "0.5"
+        }
+      }
+    ],
+    "provenance": "issuer_constructed"
+  },
+  "seasoningRounds": 2,
+  "warningRay": "8000000000000000000000000000",
+  "generatedAt": 1788713978
+}

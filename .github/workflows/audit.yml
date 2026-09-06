@@ -1,0 +1,26 @@
+# The audit BACKSTOP runs on its own reference endpoint, on the attestation cadence.
+#
+# This is the same action any team can drop into their pipeline: it fails the build when the
+# endpoint has departed from the envelope the evaluation was run against, which is the point at
+# which a benchmark number stops describing the system that was deployed.
+name: endpoint audit
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./action
+        with:
+          attestation: attestations/reference.json
+          pool: pools/v1.json
+          base-url: ${{ vars.INFERENCE_BASE_URL }}
+          model: ${{ vars.INFERENCE_MODEL }}
+          api-key: ${{ secrets.INFERENCE_API_KEY }}
+          rounds: 1
+          draws: 96

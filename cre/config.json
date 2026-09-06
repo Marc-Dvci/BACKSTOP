@@ -1,0 +1,21 @@
+{
+  "chainSelector": "monad-testnet",
+  "attestationRegistry": "0x0000000000000000000000000000000000000000",
+  "auditRegistry": "0x0000000000000000000000000000000000000000",
+  "versionId": "1",
+  "baseUrl": "https://openrouter.ai/api/v1",
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "apiKeySecret": "OPENROUTER_API_KEY",
+  "alphaRay": "50000000000000000000000000",
+  "lambdaRay": "500000000000000000000000000",
+  "m": 99,
+  "n": 96,
+  "tMax": 40,
+  "cellsPerRound": 8,
+  "mixtureIds": ["cfg-attested", "cfg-envelope", "mix-50"],
+  "poolRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "seedChainRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "probeSeed": "0x1111111111111111111111111111111111111111111111111111111111111111",
+  "poolUri": "https://backstop.audit/pools/v1.json",
+  "cadenceSeconds": 3600
+}

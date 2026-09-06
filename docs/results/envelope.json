@@ -1,0 +1,77 @@
+{
+  "model": "Qwen3-1.7B",
+  "drawsPerCell": 500,
+  "attested": "BF16",
+  "envelopeElement": "Q8_0",
+  "substitution": "Q4_K_M",
+  "cells": [
+    {
+      "cell": "digit.en",
+      "envelopeRay": "11982919028268384620725272",
+      "substitutionRay": "35490150314874456019161804",
+      "envelope": 0.011982919028268384,
+      "substitution": 0.03549015031487445,
+      "separation": 2.961
+    },
+    {
+      "cell": "digit.fr",
+      "envelopeRay": "3865432387248562628062451",
+      "substitutionRay": "20682628358731556435420644",
+      "envelope": 0.0038654323872485625,
+      "substitution": 0.020682628358731553,
+      "separation": 5.35
+    },
+    {
+      "cell": "digit.es",
+      "envelopeRay": "6214635666490155574962840",
+      "substitutionRay": "24482105466838885880003757",
+      "envelope": 0.006214635666490155,
+      "substitution": 0.024482105466838884,
+      "separation": 3.939
+    },
+    {
+      "cell": "digit.zh",
+      "envelopeRay": "1841272975689654258390078",
+      "substitutionRay": "14943701605623190853887999",
+      "envelope": 0.0018412729756896542,
+      "substitution": 0.01494370160562319,
+      "separation": 8.115
+    },
+    {
+      "cell": "letter.en",
+      "envelopeRay": "6435589447001817695826459",
+      "substitutionRay": "59474971636863859557789350",
+      "envelope": 0.006435589447001817,
+      "substitution": 0.059474971636863855,
+      "separation": 9.241
+    },
+    {
+      "cell": "letter.fr",
+      "envelopeRay": "729691901391841893700198",
+      "substitutionRay": "8513930997340865918085899",
+      "envelope": 0.000729691901391842,
+      "substitution": 0.008513930997340866,
+      "separation": 11.667
+    },
+    {
+      "cell": "letter.es",
+      "envelopeRay": "5528243854344771311719050",
+      "substitutionRay": "36977754513477736947126637",
+      "envelope": 0.0055282438543447715,
+      "substitution": 0.036977754513477734,
+      "separation": 6.688
+    },
+    {
+      "cell": "letter.zh",
+      "envelopeRay": "6204619793041937405430034",
+      "substitutionRay": "7802095127790184350739297",
+      "envelope": 0.0062046197930419374,
+      "substitution": 0.007802095127790184,
+      "separation": 1.257
+    }
+  ],
+  "meanEnvelope": 0.005350300631684641,
+  "meanSubstitution": 0.02604591725269259,
+  "separation": 4.868,
+  "jsdMax": 0.6931471805599453
+}

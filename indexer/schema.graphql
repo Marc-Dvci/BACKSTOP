@@ -1,0 +1,193 @@
+"""
+An endpoint under audit, at one attestation version.
+
+Everything past the identifiers is derived: the running product, the distance to the boundary,
+the realised detection delay, the void rate against the declared breaker, and the exposure the
+underwriting side carries against it.
+"""
+type Endpoint {
+  id: ID!
+  versionId: BigInt!
+  endpointId: String!
+  issuer: Issuer!
+  attestationDigest: String!
+  settlementEligible: Boolean!
+  status: String!
+  retirementReason: String
+  issuedAt: BigInt!
+  retiredAt: BigInt
+
+  "log M_version at the latest closed round, RAY scale"
+  versionLogRay: BigInt!
+  "Fraction of the way to the boundary, in basis points"
+  distanceBps: Int!
+  inWarningRegion: Boolean!
+  crossed: Boolean!
+  crossedAtRound: Int
+
+  roundsClosed: Int!
+  scheduledTotal: Int!
+  voidedTotal: Int!
+  "Realised void rate against the attestation's declared circuit breaker"
+  voidRateBps: Int!
+
+  "Sum of notional over every live policy on this endpoint"
+  outstandingNotional: BigInt!
+  policiesWritten: Int!
+  policiesSettled: Int!
+  totalPaidOut: BigInt!
+  totalPremiumEarned: BigInt!
+
+  rounds: [Round!]! @derivedFrom(field: "endpoint")
+  policies: [Policy!]! @derivedFrom(field: "endpoint")
+}
+
+"An issuer, registered as an ERC-8004 agent. Reputation accrues to the agentId."
+type Issuer {
+  id: ID!
+  agentId: BigInt!
+  registeredAt: BigInt!
+  versionsIssued: Int!
+  versionsRetired: Int!
+  versionsSuspended: Int!
+  challengesUpheld: Int!
+  challengesRejected: Int!
+  bondPosted: BigInt!
+  endpoints: [Endpoint!]! @derivedFrom(field: "issuer")
+}
+
+"One audit round, from open through seal to close."
+type Round {
+  id: ID!
+  endpoint: Endpoint!
+  round: Int!
+  seed: String!
+  transcriptRoot: String
+  revealRoot: String
+  eRoundRay: BigInt
+  "Cumulative log at this round. A policy's own process is the difference of two of these."
+  cumLogRay: BigInt
+  warning: Boolean!
+  versionCrossed: Boolean!
+  scheduled: Int!
+  voided: Int!
+  openedAt: BigInt!
+  sealedAt: BigInt
+  closedAt: BigInt
+  claimRoot: String
+  claimProposer: String
+  disputed: Boolean!
+  ticketsReserved: Int!
+  ticketsPublished: Int!
+  ticketsVoided: Int!
+}
+
+"Coverage on one endpoint, authorised by a passkey."
+type Policy {
+  id: ID!
+  policyId: BigInt!
+  endpoint: Endpoint!
+  buyer: Buyer!
+  notional: BigInt!
+  premium: BigInt!
+  startRound: Int!
+  expiryAt: BigInt!
+  purchasedAt: BigInt!
+  status: String!
+
+  "The quote components, published so the price is legible next to the number"
+  quotePDepartureBps: Int!
+  quotePDetectedBps: Int!
+  quoteFalseAlarmBps: Int!
+  quoteCapitalChargeBps: Int!
+  quotePoolMarginBps: Int!
+
+  settledAtRound: Int
+  paidOut: BigInt
+  premiumRefunded: BigInt
+  premiumEarned: BigInt
+  "Rounds from the policy start to its crossing"
+  detectionDelayRounds: Int
+}
+
+type Buyer {
+  id: ID!
+  credentialsEnrolled: Int!
+  policiesBought: Int!
+  totalNotional: BigInt!
+  totalPremiumPaid: BigInt!
+  totalPaidOut: BigInt!
+  policies: [Policy!]! @derivedFrom(field: "buyer")
+}
+
+"The pool, as one row that every capital event updates."
+type Pool {
+  id: ID!
+  totalAssets: BigInt!
+  reservedCapital: BigInt!
+  freeCapital: BigInt!
+  totalShares: BigInt!
+  underwriters: Int!
+  "Total assets over reserved capital, in basis points"
+  collateralisationBps: Int!
+  totalPremiumEarned: BigInt!
+  totalPaidOut: BigInt!
+  policiesActive: Int!
+  policiesSettled: Int!
+  policiesExpired: Int!
+  updatedAt: BigInt!
+}
+
+type Underwriter {
+  id: ID!
+  shares: BigInt!
+  deposited: BigInt!
+  withdrawn: BigInt!
+  firstDepositAt: BigInt!
+}
+
+"An evidence producer and its realised void rate."
+type Producer {
+  id: ID!
+  bond: BigInt!
+  registeredAt: BigInt!
+  ticketsReserved: Int!
+  ticketsPublished: Int!
+  ticketsVoided: Int!
+  slashed: BigInt!
+  voidRateBps: Int!
+}
+
+"""
+The protocol-wide index, recomputed on every event.
+
+This is the row the public reliability and price index reads, and the one that answers the
+portfolio question the underwriting side has: what the realised loss ratio and detection delay
+are once the endpoints have run.
+"""
+type ProtocolIndex {
+  id: ID!
+  endpointsMeasured: Int!
+  endpointsSettlementEligible: Int!
+  endpointsCrossed: Int!
+  endpointsInWarning: Int!
+  roundsClosed: Int!
+  totalScheduledExecutions: Int!
+  totalVoidedExecutions: Int!
+  policiesWritten: Int!
+  policiesSettled: Int!
+  totalNotionalWritten: BigInt!
+  totalPaidOut: BigInt!
+  totalPremiumEarned: BigInt!
+  "Realised loss ratio: paid out over premium earned, in basis points"
+  lossRatioBps: Int!
+  challengesUpheld: Int!
+  challengesRejected: Int!
+  "Sum of detection delays over settled policies, with the count, so the mean is exact"
+  detectionDelaySum: Int!
+  detectionDelayCount: Int!
+  "Largest number of policies settled in one transaction, and the gas it took"
+  maxBatchSize: Int!
+  maxBatchGas: BigInt!
+  updatedAt: BigInt!
+}

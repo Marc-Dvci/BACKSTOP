@@ -1,0 +1,15 @@
+# CRE workflow manifest for the BACKSTOP audit cadence.
+name: backstop-audit
+owner: backstop
+target: monad-testnet
+entrypoint: workflow.ts
+config: config.json
+secrets:
+  - OPENROUTER_API_KEY
+  - seed-share-0
+  - seed-share-1
+  - seed-share-2
+capabilities:
+  - cron
+  - http
+  - evm

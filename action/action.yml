@@ -1,0 +1,79 @@
+name: "BACKSTOP audit"
+description: "Fail the build when the inference endpoint has departed from the envelope your evaluation was run against."
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  attestation:
+    description: "Path to the attestation configuration."
+    required: true
+  pool:
+    description: "Path to the committed reference pool."
+    required: true
+  base-url:
+    description: "OpenAI-compatible base URL of the endpoint under audit."
+    required: true
+  model:
+    description: "Model slug to request."
+    required: true
+  api-key:
+    description: "Credential for the endpoint. Use a probe-scoped key with a spend cap."
+    required: false
+  rounds:
+    description: "Audit rounds to run."
+    required: false
+    default: "1"
+  draws:
+    description: "Draws per cell per round. The detection floor moves with this."
+    required: false
+    default: "96"
+  report:
+    description: "Where to write the machine-readable verdict."
+    required: false
+    default: "backstop-verdict.json"
+
+outputs:
+  crossed:
+    description: "true when the evidence crossed the precommitted boundary"
+    value: ${{ steps.audit.outputs.crossed }}
+  log-m:
+    description: "log M at the last round, RAY scale"
+    value: ${{ steps.audit.outputs.log-m }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install the CLI
+      shell: bash
+      run: npm i -g @backstop/cli
+
+    - name: Audit
+      id: audit
+      shell: bash
+      env:
+        BACKSTOP_API_KEY: ${{ inputs.api-key }}
+      run: |
+        set +e
+        backstop audit \
+          --attestation "${{ inputs.attestation }}" \
+          --pool "${{ inputs.pool }}" \
+          --base-url "${{ inputs.base-url }}" \
+          --model "${{ inputs.model }}" \
+          --rounds "${{ inputs.rounds }}" \
+          --draws "${{ inputs.draws }}" \
+          --json "${{ inputs.report }}"
+        code=$?
+        set -e
+        if [ -f "${{ inputs.report }}" ]; then
+          echo "crossed=$(jq -r .crossed "${{ inputs.report }}")" >> "$GITHUB_OUTPUT"
+          echo "log-m=$(jq -r .logMRay "${{ inputs.report }}")" >> "$GITHUB_OUTPUT"
+        fi
+        exit $code
+
+    - name: Upload the verdict
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: backstop-verdict
+        path: ${{ inputs.report }}

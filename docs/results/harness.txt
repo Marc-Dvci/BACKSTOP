@@ -1,0 +1,3 @@
+Envelope harness  8 cells  20000 draws per cell per configuration
+
+  bf16 (BF16)  starting llama-server

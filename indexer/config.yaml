@@ -1,0 +1,79 @@
+# Envio HyperIndex configuration for BACKSTOP.
+#
+# The index is the product's public face: it turns a stream of round closures into the two
+# running products, the derived reliability and price index, the realised detection delay, and
+# the correlation structure the underwriting side needs. Every entity in schema.graphql past
+# the identifiers is derived or aggregated rather than a mirror of an event.
+#
+# Addresses are filled in by scripts/sync-deployment.mjs after the contracts are deployed.
+name: backstop
+description: Capital-backed verification for hosted AI inference
+preload_handlers: true
+
+networks:
+  - id: 10143 # Monad testnet
+    start_block: 0
+    contracts:
+      - name: AttestationRegistry
+        address:
+          - "0x0000000000000000000000000000000000000000"
+        handler: src/EventHandlers.ts
+        events:
+          - event: VersionIssued(uint256 indexed versionId, bytes32 indexed endpointId, address indexed issuer, bytes32 attestationDigest, bool settlementEligible)
+          - event: VersionRetired(uint256 indexed versionId, string reason)
+          - event: VersionSuspended(uint256 indexed versionId, string reason)
+          - event: VersionResumed(uint256 indexed versionId)
+          - event: IssuerRegistered(address indexed issuer, uint256 agentId)
+
+      - name: AuditRegistry
+        address:
+          - "0x0000000000000000000000000000000000000000"
+        handler: src/EventHandlers.ts
+        events:
+          - event: RoundOpened(uint256 indexed versionId, uint32 indexed round, bytes32 seed)
+          - event: RoundSealed(uint256 indexed versionId, uint32 indexed round, bytes32 transcriptRoot, uint32 voided)
+          - event: RoundClosed(uint256 indexed versionId, uint32 indexed round, int256 eRoundRay, int256 cumLogRay, bool warning, bool versionCrossed)
+
+      - name: PolicyRegistry
+        address:
+          - "0x0000000000000000000000000000000000000000"
+        handler: src/EventHandlers.ts
+        events:
+          - event: PolicyPurchased(uint256 indexed policyId, address indexed buyer, uint256 indexed versionId, uint256 notional, uint256 premium, uint32 startRound, uint64 expiryAt, (uint64,uint64,uint64,uint64,uint64) quote)
+          - event: PolicyExpired(uint256 indexed policyId, uint256 premiumEarned)
+          - event: PolicySettled(uint256 indexed policyId, address indexed to, uint256 notional, uint256 premiumRefunded)
+          - event: CredentialEnrolled(address indexed owner, bytes32 indexed credentialId, uint256 x, uint256 y)
+
+      - name: CoveragePool
+        address:
+          - "0x0000000000000000000000000000000000000000"
+        handler: src/EventHandlers.ts
+        events:
+          - event: Deposited(address indexed underwriter, uint256 assets, uint256 shares)
+          - event: Withdrawn(address indexed underwriter, uint256 assets, uint256 shares)
+          - event: Reserved(uint256 indexed policyId, uint256 notional)
+          - event: Released(uint256 indexed policyId, uint256 notional, uint256 premiumEarned)
+          - event: PaidOut(uint256 indexed policyId, address indexed to, uint256 notional)
+
+      - name: Settlement
+        address:
+          - "0x0000000000000000000000000000000000000000"
+        handler: src/EventHandlers.ts
+        events:
+          - event: ClaimRootPublished(uint256 indexed versionId, uint32 indexed round, bytes32 root, address proposer)
+          - event: ChallengeUpheld(uint256 indexed versionId, uint32 indexed round, address indexed challenger, string quantity, uint256 award)
+          - event: ChallengeRejected(uint256 indexed versionId, uint32 indexed round, address indexed challenger)
+          - event: Redeemed(uint256 indexed policyId, address indexed to, uint256 notional, uint32 round)
+          - event: BatchSettled(uint256 indexed versionId, uint32 indexed round, uint256 count, uint256 gasUsed)
+          - event: IssuerBonded(uint256 indexed versionId, address indexed issuer, uint256 amount)
+
+      - name: TicketRegistry
+        address:
+          - "0x0000000000000000000000000000000000000000"
+        handler: src/EventHandlers.ts
+        events:
+          - event: ProducerRegistered(address indexed producer, uint256 bond)
+          - event: ProducerSlashed(address indexed producer, uint256 amount, bytes32 indexed ticket)
+          - event: TicketReserved(bytes32 indexed ticket, address indexed producer, uint256 versionId, uint32 round)
+          - event: TicketPublished(bytes32 indexed ticket, bytes32 commitment)
+          - event: TicketVoided(bytes32 indexed ticket, address indexed producer)

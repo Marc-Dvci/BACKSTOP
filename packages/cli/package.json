@@ -1,0 +1,23 @@
+{
+  "name": "@backstop/cli",
+  "version": "1.0.0",
+  "description": "backstop audit, backstop replay, backstop index",
+  "type": "module",
+  "bin": { "backstop": "./dist/index.js" },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --clean --banner.js=\"#!/usr/bin/env node\"",
+    "test": "vitest run --passWithNoTests",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@backstop/core": "workspace:*",
+    "@backstop/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "vitest": "^3.0.5"
+  }
+}

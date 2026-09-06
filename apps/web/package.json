@@ -1,0 +1,27 @@
+{
+  "name": "@backstop/web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@backstop/core": "workspace:*",
+    "@backstop/sdk": "workspace:*",
+    "@dynamic-labs/ethereum": "^4.4.1",
+    "@dynamic-labs/sdk-react-core": "^4.4.1",
+    "next": "15.1.6",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "viem": "^2.22.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "typescript": "^5.7.3"
+  }
+}

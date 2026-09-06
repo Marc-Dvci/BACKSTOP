@@ -1,0 +1,37 @@
+{
+  "name": "@backstop/core",
+  "version": "1.0.0",
+  "description": "BACKSTOP canonical arithmetic, e-process engine, attestation schema and replay",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run",
+    "gate-zero": "tsx scripts/gate-zero.ts",
+    "vectors": "tsx scripts/emit-vectors.ts",
+    "schema": "tsx scripts/emit-schema.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.8.1",
+    "@noble/hashes": "^1.7.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "zod-to-json-schema": "^3.24.1"
+  }
+}

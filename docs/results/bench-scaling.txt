@@ -1,0 +1,14 @@
+Detection floor against draws per cell  alpha=0.05 m=99 T_max=40 cells=8
+
+  eps    n     queries/round   power   median delay   benign
+  0.10     64          512   0.000              -   0/60
+  0.05     64          512   0.000              -   0/60
+  0.10    128         1024   0.983             20   0/60
+  0.05    128         1024   0.000              -   0/60
+  0.10    256         2048   1.000             10   0/60
+  0.05    256         2048   0.000              -   0/60
+  0.10    512         4096   1.000              6   0/60
+  0.05    512         4096   1.000             19   0/60
+
+elapsed 727.1s
+SCALING DONE rc=0

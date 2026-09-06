@@ -1,0 +1,165 @@
+{
+  "params": {
+    "m": 99,
+    "n": 64,
+    "tMax": 40,
+    "cells": 8,
+    "reps": 200,
+    "alpha": 0.05
+  },
+  "benign": [
+    {
+      "scenario": "serves cfg-a throughout",
+      "crossings": 0,
+      "reps": 200
+    },
+    {
+      "scenario": "serves cfg-b throughout",
+      "crossings": 0,
+      "reps": 200
+    },
+    {
+      "scenario": "serves mix-50 throughout",
+      "crossings": 0,
+      "reps": 200
+    },
+    {
+      "scenario": "cfg-a to cfg-b at round 10",
+      "crossings": 0,
+      "reps": 200
+    },
+    {
+      "scenario": "cfg-b to mix-50 at round 15",
+      "crossings": 0,
+      "reps": 200
+    },
+    {
+      "scenario": "alternates cfg-a and cfg-b",
+      "crossings": 0,
+      "reps": 200
+    },
+    {
+      "scenario": "mix-50 to cfg-a at round 5",
+      "crossings": 0,
+      "reps": 200
+    },
+    {
+      "scenario": "per-cell rotation across the envelope",
+      "crossings": 0,
+      "reps": 200
+    }
+  ],
+  "substitution": [
+    {
+      "scenario": "full substitution",
+      "eps": 1,
+      "crossings": 200,
+      "reps": 200,
+      "meanDelay": 7.96,
+      "medianDelay": 8
+    },
+    {
+      "scenario": "dilution eps=0.5",
+      "eps": 0.5,
+      "crossings": 200,
+      "reps": 200,
+      "meanDelay": 8.24,
+      "medianDelay": 8
+    },
+    {
+      "scenario": "dilution eps=0.3",
+      "eps": 0.3,
+      "crossings": 200,
+      "reps": 200,
+      "meanDelay": 10.855,
+      "medianDelay": 11
+    },
+    {
+      "scenario": "dilution eps=0.2",
+      "eps": 0.2,
+      "crossings": 200,
+      "reps": 200,
+      "meanDelay": 17.525,
+      "medianDelay": 17
+    },
+    {
+      "scenario": "dilution eps=0.1",
+      "eps": 0.1,
+      "crossings": 0,
+      "reps": 200,
+      "meanDelay": null,
+      "medianDelay": null
+    }
+  ],
+  "delay": [
+    {
+      "alpha": 0.01,
+      "eps": 1,
+      "power": 1,
+      "meanDelay": 5.79,
+      "medianDelay": 6
+    },
+    {
+      "alpha": 0.01,
+      "eps": 0.5,
+      "power": 1,
+      "meanDelay": 6.57,
+      "medianDelay": 7
+    },
+    {
+      "alpha": 0.01,
+      "eps": 0.3,
+      "power": 1,
+      "meanDelay": 8.32,
+      "medianDelay": 8
+    },
+    {
+      "alpha": 0.05,
+      "eps": 1,
+      "power": 1,
+      "meanDelay": 4.81,
+      "medianDelay": 5
+    },
+    {
+      "alpha": 0.05,
+      "eps": 0.5,
+      "power": 1,
+      "meanDelay": 5,
+      "medianDelay": 5
+    },
+    {
+      "alpha": 0.05,
+      "eps": 0.3,
+      "power": 1,
+      "meanDelay": 5.71,
+      "medianDelay": 6
+    },
+    {
+      "alpha": 0.1,
+      "eps": 1,
+      "power": 1,
+      "meanDelay": 4,
+      "medianDelay": 4
+    },
+    {
+      "alpha": 0.1,
+      "eps": 0.5,
+      "power": 1,
+      "meanDelay": 4.1,
+      "medianDelay": 4
+    },
+    {
+      "alpha": 0.1,
+      "eps": 0.3,
+      "power": 1,
+      "meanDelay": 5.17,
+      "medianDelay": 5
+    }
+  ],
+  "headline": {
+    "benignCrossings": 0,
+    "benignTrials": 1600,
+    "departureCrossings": 800,
+    "departureTrials": 1000
+  }
+}

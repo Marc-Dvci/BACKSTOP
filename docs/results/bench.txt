@@ -1,0 +1,34 @@
+BACKSTOP benchmark  m=99 n=64 T_max=40 cells=8 reps=200
+
+1. Benign configuration changes inside the envelope, alpha = 0.05
+   serves cfg-a throughout                0/200 crossed
+   serves cfg-b throughout                0/200 crossed
+   serves mix-50 throughout               0/200 crossed
+   cfg-a to cfg-b at round 10             0/200 crossed
+   cfg-b to mix-50 at round 15            0/200 crossed
+   alternates cfg-a and cfg-b             0/200 crossed
+   mix-50 to cfg-a at round 5             0/200 crossed
+   per-cell rotation across the envelope  0/200 crossed
+
+2. Substitution and dilution, alpha = 0.05
+   full substitution                      200/200 crossed  median delay 8 rounds
+   dilution eps=0.5                       200/200 crossed  median delay 8 rounds
+   dilution eps=0.3                       200/200 crossed  median delay 11 rounds
+   dilution eps=0.2                       200/200 crossed  median delay 17 rounds
+   dilution eps=0.1                       0/200 crossed  median delay - rounds
+
+   Headline: 0 of 1600 benign, 800 of 1000 departures.
+
+3. Detection delay against alpha and departure size
+   alpha=0.01  eps=1  power 1.000  mean delay 5.8  median 6
+   alpha=0.01  eps=0.5  power 1.000  mean delay 6.6  median 7
+   alpha=0.01  eps=0.3  power 1.000  mean delay 8.3  median 8
+   alpha=0.05  eps=1  power 1.000  mean delay 4.8  median 5
+   alpha=0.05  eps=0.5  power 1.000  mean delay 5.0  median 5
+   alpha=0.05  eps=0.3  power 1.000  mean delay 5.7  median 6
+   alpha=0.1  eps=1  power 1.000  mean delay 4.0  median 4
+   alpha=0.1  eps=0.5  power 1.000  mean delay 4.1  median 4
+   alpha=0.1  eps=0.3  power 1.000  mean delay 5.2  median 5
+
+elapsed 638.2s
+BENCH DONE rc=0

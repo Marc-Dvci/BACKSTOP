@@ -1,0 +1,57 @@
+BACKSTOP
+Copyright 2026 Marc Donovici
+
+Licensed under the MIT License. See LICENSE.
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+ToseaAI/llm-fingerprint-detector
+  MIT License.
+  The probe battery in packages/core/src/battery.ts is derived from the single-token
+  fingerprinting approach in this project. Pinned by commit in the attestation's
+  detector.batteryCommit field.
+
+Photen/IRIS-audit
+  PolyForm Noncommercial 1.0.0 for code, CC BY-NC 4.0 for data.
+  NO IRIS CODE OR DATA IS PRESENT IN THIS REPOSITORY. The dilution and routing-audit
+  methods this project measures against are reimplemented from the paper text and are
+  cited as prior work rather than copied.
+
+OpenZeppelin Contracts (v5.4.0)
+  MIT License.
+  Used in the test harness only, for a Solidity secp256r1 verifier that stands in for
+  Monad's precompile at 0x0100 so the WebAuthn ceremony tests exercise real curve
+  arithmetic. Not used in any deployed contract.
+
+Foundry forge-std
+  MIT / Apache-2.0.
+
+@noble/hashes, @noble/curves
+  MIT License.
+
+viem, Next.js, React, zod
+  MIT License.
+
+--------------------------------------------------------------------------------
+Cited work
+--------------------------------------------------------------------------------
+
+Load-bearing and verified against primary sources:
+
+  arXiv 2607.10252   single-token endpoint fingerprinting; 165 models, 326,000 requests,
+                     7.3% equal error rate on a 40-cell battery, $0.21 per model
+  arXiv 2607.20860   gateway-scale substitution and routing-dilution auditing; 14 of 15
+                     provider pairs distinguishable, dilution at eps=0.3 detected at mean
+                     power 0.85 with m=80 queries, pooled in-distribution FPR 0.017
+  arXiv 2606.10154   Quality Is Not a Safety Proxy Under Quantization; refusal rates fall
+                     12 to 68 percentage points in 7 of 11 AWQ/GPTQ checkpoints
+  arXiv 2606.22560   Evidence-Bound Gateway-Path Provenance for Third-Party LLM Inference
+  arXiv 2609.02208   Agentic Settlement Protocol
+  IACR eprint 2026/199  zkAgent
+  OpenRouter Exacto announcement
+  LessWrong, 23 July 2026, on serving-backend effects and provider precision
+  Monad documentation for the P256 precompile and gas limits
+  Chainlink CRE supported networks
+  the ERC-8004 contracts repository

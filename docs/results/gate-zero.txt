@@ -1,0 +1,14 @@
+Gate Zero  alpha=0.05  m=99  n=64  T_max=40  cells=8  |M|=3
+           4000 trials across 40 independently generated pools
+
+A. endpoint serves a vertex of M
+  crossings 0/4000  realised 0.0000  95% CI [0.0000, 0.0010]  nominal 0.05  PASS
+B. endpoint serves a mixture element of M
+  crossings 0/4000  realised 0.0000  95% CI [0.0000, 0.0010]  nominal 0.05  PASS
+C. endpoint serves the second vertex of M
+  crossings 0/4000  realised 0.0000  95% CI [0.0000, 0.0010]  nominal 0.05  PASS
+
+Ville boundary ln(1/alpha) = 2.995732
+elapsed 2881.8s
+wrote docs/results/gate-zero.json
+GATE ZERO DONE rc=0

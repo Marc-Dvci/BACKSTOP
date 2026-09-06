@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @backstop/core build
+      - run: pnpm --filter @backstop/core test
+      - run: pnpm --filter @backstop/sdk build
+      - run: pnpm -r exec tsc --noEmit
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Dependencies
+        run: cd contracts && forge install
+      - name: Build
+        run: forge build --root contracts
+      - name: Test
+        run: forge test --root contracts -vv
+      - name: Invariants
+        run: forge test --root contracts --match-contract InvariantsTest
+
+  differential:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: cd contracts && forge install
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @backstop/core build
+      - name: Regenerate the cross-implementation vectors
+        run: pnpm --filter @backstop/core run vectors
+      - name: Assert the Solidity adjudicator reproduces every integer
+        run: forge test --root contracts --match-contract DifferentialTest -vv
+      - name: Fail if the vectors drifted
+        run: git diff --exit-code contracts/vectors/
+
+  gate-zero:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @backstop/core build
+      - name: Lifetime Type-I bound
+        run: pnpm --filter @backstop/core exec tsx scripts/gate-zero.ts --trials 200 --pools 4
