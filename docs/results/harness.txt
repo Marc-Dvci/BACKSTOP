@@ -3,3 +3,7 @@ Envelope harness  8 cells  20000 draws per cell per configuration
   bf16 (BF16)  starting llama-server
     digit.en        20000 matched  mode 3          72.3%  192.1s
     digit.fr        20000 matched  mode 3          65.4%  193.8s
+    digit.es        20000 matched  mode 3          55.9%  187.4s
+    digit.zh        20000 matched  mode 3          93.2%  194.8s
+    letter.en       20000 matched  mode b          48.6%  194.5s
+    letter.fr       20000 matched  mode a          47.7%  287.4s

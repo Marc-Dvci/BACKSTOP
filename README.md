@@ -131,6 +131,15 @@ Monad allows 30,000,000 gas per transaction inside a 150,000,000 block and charg
 rather than `gas_used`, so the batch path is explicitly bounded and the adjudicator recomputes a
 full cell rather than accepting an assertion.
 
+### The precompile, checked live
+
+All nine WebAuthn fixtures were sent to `0x0100` on Monad testnet. The precompile verified every
+one of them, including the six replay vectors, because each carries a genuine secp256r1
+signature. What rejects a replay is the ceremony above the curve check: the digest it signed is
+bound to a different chain, contract, policy version, nonce or notional, and `WebAuthnP256.verify`
+compares the challenge in `clientDataJSON` against the digest actually being authorised. That
+separation is the reason the ceremony exists. `node scripts/check-p256.mjs`
+
 ### Tests
 
 53 contract tests pass, including 7 invariants over 128 runs × 8,192 calls each, 9 WebAuthn
@@ -282,6 +291,26 @@ plus 1e-25 relative, pow within 1e-24 absolute.**
    makes full onchain adjudication of a cell affordable at 188,850 gas.
 4. **ERC-8004 as a first-class agent registry.** Issuers, the auditor and bonded providers
    register, so envelope quality and retirement behaviour accrue to an agentId a buyer can read.
+
+---
+
+## Deployed
+
+Monad testnet, chain 10143.
+
+| | |
+|---|---|
+| `AttestationRegistry` | [`0x7219…71e8`](https://testnet.monadexplorer.com/address/0x72193621705c660ffca7a8AFd3338EccB31571e8) |
+| `AuditRegistry` | [`0xcacF…872F`](https://testnet.monadexplorer.com/address/0xcacFf7F418F92C160f270f6B4Db3B00fD739872F) |
+| `CoveragePool` | [`0xA295…BA4e`](https://testnet.monadexplorer.com/address/0xA29548deCABE4c5A07461D00B7ED26dfFb10BA4e) |
+| `PolicyRegistry` | [`0x8d6e…3902`](https://testnet.monadexplorer.com/address/0x8d6e370b95A783B983e40468413227ad94b03902) |
+| `Settlement` | [`0x9d34…082B`](https://testnet.monadexplorer.com/address/0x9d344c625D7D62FA43ebc97528213B666893082B) |
+| `TicketRegistry` | [`0xa91E…41C3`](https://testnet.monadexplorer.com/address/0xa91Ee747C648c8a6f9418FaB1C21b7f00DC441C3) |
+| Settlement asset | [`0x29B3…4b50`](https://testnet.monadexplorer.com/address/0x29B33CB36D32Adf164784BdFdA40d034DD234b50) |
+| ERC-8004 auditor | **agentId 1824** in the [Identity Registry](https://testnet.monadexplorer.com/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) |
+
+The settlement asset is freely mintable on testnet, so a judge can fund a wallet and drive the
+whole flow without asking anyone for tokens.
 
 ---
 

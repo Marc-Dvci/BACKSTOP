@@ -1,0 +1,13 @@
+{
+  "chainId": 10143,
+  "attestationRegistry": "0x72193621705c660ffca7a8AFd3338EccB31571e8",
+  "auditRegistry": "0xcacFf7F418F92C160f270f6B4Db3B00fD739872F",
+  "coveragePool": "0xA29548deCABE4c5A07461D00B7ED26dfFb10BA4e",
+  "policyRegistry": "0x8d6e370b95A783B983e40468413227ad94b03902",
+  "settlement": "0x9d344c625D7D62FA43ebc97528213B666893082B",
+  "ticketRegistry": "0xa91Ee747C648c8a6f9418FaB1C21b7f00DC441C3",
+  "asset": "0x29B33CB36D32Adf164784BdFdA40d034DD234b50",
+  "issuer": "0x808ea718087e842fEa60082490a2E951AA4AFc4e",
+  "rpOrigin": "https://backstop.audit",
+  "rpId": "backstop.audit"
+}

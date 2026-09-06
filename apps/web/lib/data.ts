@@ -53,14 +53,25 @@ type PoolRowJson = Record<keyof PoolRow, string>;
 
 const snap = snapshot as unknown as Snapshot;
 
+/**
+ * Whether the page is reading the chain or the bundled snapshot.
+ *
+ * The snapshot is what `make demo` writes. It stands in before the contracts hold anything, so
+ * the shapes on the page are the same either way and a reader never lands on an empty table
+ * while the audit cadence is still filling in.
+ */
+let liveEndpointCount: number | null = null;
+
 export function dataSource(): "chain" | "snapshot" {
-  return isDeployed() ? "chain" : "snapshot";
+  return isDeployed() && liveEndpointCount !== 0 ? "chain" : "snapshot";
 }
 
 export async function getEndpoints(): Promise<EndpointRow[]> {
   if (isDeployed()) {
     try {
-      return await readEndpoints();
+      const rows = await readEndpoints();
+      liveEndpointCount = rows.length;
+      if (rows.length > 0) return rows;
     } catch {
       /* fall through to the snapshot */
     }
@@ -80,7 +91,7 @@ export async function getEndpoint(versionId: number): Promise<EndpointRow | unde
 }
 
 export async function getRounds(versionId: number): Promise<RoundRow[]> {
-  if (isDeployed()) {
+  if (isDeployed() && liveEndpointCount !== 0) {
     try {
       return await readRounds(versionId);
     } catch {
@@ -97,7 +108,7 @@ export async function getRounds(versionId: number): Promise<RoundRow[]> {
 }
 
 export async function getPolicies(): Promise<PolicyRow[]> {
-  if (isDeployed()) {
+  if (isDeployed() && liveEndpointCount !== 0) {
     try {
       return await readPolicies();
     } catch {
@@ -114,7 +125,7 @@ export async function getPolicies(): Promise<PolicyRow[]> {
 }
 
 export async function getPool(): Promise<PoolRow> {
-  if (isDeployed()) {
+  if (isDeployed() && liveEndpointCount !== 0) {
     try {
       return await readPool();
     } catch {

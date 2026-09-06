@@ -1,7 +1,7 @@
 {
   "chainSelector": "monad-testnet",
-  "attestationRegistry": "0x0000000000000000000000000000000000000000",
-  "auditRegistry": "0x0000000000000000000000000000000000000000",
+  "attestationRegistry": "0x72193621705c660ffca7a8AFd3338EccB31571e8",
+  "auditRegistry": "0xcacFf7F418F92C160f270f6B4Db3B00fD739872F",
   "versionId": "1",
   "baseUrl": "https://openrouter.ai/api/v1",
   "model": "meta-llama/llama-3.3-70b-instruct",
@@ -12,7 +12,11 @@
   "n": 96,
   "tMax": 40,
   "cellsPerRound": 8,
-  "mixtureIds": ["cfg-attested", "cfg-envelope", "mix-50"],
+  "mixtureIds": [
+    "cfg-attested",
+    "cfg-envelope",
+    "mix-50"
+  ],
   "poolRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "seedChainRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "probeSeed": "0x1111111111111111111111111111111111111111111111111111111111111111",

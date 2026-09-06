@@ -1,0 +1,20 @@
+  valid                          precompile says valid
+  valid-second-nonce             precompile says valid
+  replay-across-chain            precompile says valid
+  replay-across-contract         precompile says valid
+  replay-across-policy-version   precompile says valid
+  replay-across-nonce            precompile says valid
+  replay-across-notional         precompile says valid
+  wrong-origin                   precompile says valid
+  no-user-verification           precompile says valid
+
+  9 signatures verified by the precompile, 0 rejected.
+  The precompile is live at 0x0100 on Monad testnet.
+
+Every fixture carries a genuine secp256r1 signature, so the precompile accepts all nine. The
+six replay vectors are rejected by the ceremony above it, not by the curve check: the digest
+they signed is bound to a different chain, contract, policy version, nonce or notional, and
+WebAuthnP256.verify compares the challenge in clientDataJSON against the digest actually being
+authorised. That separation is the reason the ceremony exists.
+
+Checked against 0x0000000000000000000000000000000000000100 on Monad testnet, chain 10143.
