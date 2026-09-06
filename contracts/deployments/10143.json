@@ -8,6 +8,6 @@
   "ticketRegistry": "0xa91Ee747C648c8a6f9418FaB1C21b7f00DC441C3",
   "asset": "0x29B33CB36D32Adf164784BdFdA40d034DD234b50",
   "issuer": "0x808ea718087e842fEa60082490a2E951AA4AFc4e",
-  "rpOrigin": "https://backstop.audit",
-  "rpId": "backstop.audit"
+  "rpOrigin": "https://backstop-smoky.vercel.app",
+  "rpId": "backstop-smoky.vercel.app"
 }

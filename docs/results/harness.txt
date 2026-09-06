@@ -8,3 +8,7 @@ Envelope harness  8 cells  20000 draws per cell per configuration
     letter.en       20000 matched  mode b          48.6%  194.5s
     letter.fr       20000 matched  mode a          47.7%  287.4s
     letter.es       20000 matched  mode a          45.5%  216.3s
+    letter.zh       20000 matched  mode b          47.7%  212.0s
+  q8_0 (Q8_0)  starting llama-server
+    digit.en        20000 matched  mode 3          67.2%  172.3s
+    digit.fr        20000 matched  mode 3          60.2%  250.8s

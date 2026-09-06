@@ -1,0 +1,21 @@
+# Only the workspace the app needs is uploaded. Everything else is built, measured or fetched
+# elsewhere and has no part in rendering the site.
+node_modules
+**/node_modules
+.git
+.next
+**/.next
+dist
+**/dist
+
+# Multi-gigabyte model weights, fetched by bench/fetch-models.sh
+bench/models
+
+# Solidity toolchain output and vendored libraries
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+
+# The committed reference pool is read by the CLI, not by the site
+pools

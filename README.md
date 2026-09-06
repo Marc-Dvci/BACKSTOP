@@ -9,7 +9,9 @@ computed under an arithmetic the chain reproduces, with a payout attached.
 
 Monad Metropolis · Trust, Identity & AI Infrastructure
 
-[Live product](https://backstop.audit) · [Method](https://backstop.audit/method) · [Docs](https://backstop.audit/docs) · [Claim vault](https://backstop.audit/vault)
+**[Live on Monad testnet](https://backstop-smoky.vercel.app)**
+
+[Reliability index](https://backstop-smoky.vercel.app) · [Method](https://backstop-smoky.vercel.app/method) · [Docs](https://backstop-smoky.vercel.app/docs) · [Claim vault](https://backstop-smoky.vercel.app/vault)
 
 </div>
 
@@ -449,7 +451,7 @@ and financial consequence in one stack.
 | **Chainlink CRE** | The audit cadence as a workflow: a chain, an external inference API, a randomness beacon and the e-process engine, in the order the statistics require. `cre/` |
 | **Envio** | HyperIndex over every contract, with derived entities rather than an event mirror: distance to boundary, realised detection delay, void rate, collateralisation, loss ratio. `indexer/` |
 | **Dynamic** | Embedded wallets so a buyer reaches coverage without a seed phrase, a server wallet for the unattended audit cadence, and an agent wallet with delegated evidence submission and claim redemption. `apps/web/components/Providers.tsx` |
-| **Mera** | One passkey, three namespaces, none of them a wallet: an encrypted claim vault recoverable on any device with nothing stored, a deterministic per-policy blinding factor for reproducible commitments, and a transcript-sealing key for evidence producers. `packages/sdk/src/prf.ts`, [live](https://backstop.audit/vault) |
+| **Mera** | One passkey, three namespaces, none of them a wallet: an encrypted claim vault recoverable on any device with nothing stored, a deterministic per-policy blinding factor for reproducible commitments, and a transcript-sealing key for evidence producers. `packages/sdk/src/prf.ts`, [live](https://backstop-smoky.vercel.app/vault) |
 
 ---
 

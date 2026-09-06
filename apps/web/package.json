@@ -13,9 +13,10 @@
     "@backstop/sdk": "workspace:*",
     "@dynamic-labs/ethereum": "^4.4.1",
     "@dynamic-labs/sdk-react-core": "^4.4.1",
-    "next": "15.1.6",
+    "next": "15.5.25",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "server-only": "^0.0.1",
     "viem": "^2.22.8"
   },
   "devDependencies": {

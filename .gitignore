@@ -16,3 +16,10 @@ generated/
 
 # Model weights. Fetched by bench/fetch-models.sh; several GB.
 bench/models/
+
+.vercel
+.env*
+
+# Vercel
+.vercel
+.env.local
