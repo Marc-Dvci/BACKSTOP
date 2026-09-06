@@ -8,7 +8,8 @@ help: ## List the targets
 
 install: ## Install everything
 	pnpm install
-	cd contracts && forge install
+	cd contracts && forge install foundry-rs/forge-std@v1.16.2 --no-git
+	cd contracts && forge install OpenZeppelin/openzeppelin-contracts@v5.4.0 --no-git
 
 build: ## Build the engine, the SDK, the CLI and the contracts
 	pnpm --filter @backstop/core build
