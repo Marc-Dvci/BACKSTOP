@@ -1,0 +1,732 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://backstop.audit/schema/attestation-v1.json",
+  "title": "BACKSTOP attestation, version 1",
+  "description": "A versioned, hash-referenced, immutable statement of what an endpoint claims to serve and of every parameter the audit will use against it. Every field carries a provenance tag, so a provider-signed attestation and one assembled from observation are distinguishable by machine. An attestation carrying `unknown` for model identity, serving stack or the mixture set is measurement-only and cannot back a policy.",
+  "canonicalArithmetic": {
+    "spec": "BSA-1|scale=1e27|round=trunc-toward-zero|ln=atanh-10-tab16|exp=taylor-25|ln2=693147180559945309417232121|expmax=88",
+    "hash": "0x396a8c70eed71797834c7de8965f1c74fccfd38a8046d9806fb12bcc8bb55366"
+  },
+  "$ref": "#/definitions/BackstopAttestation",
+  "definitions": {
+    "BackstopAttestation": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "backstop/attestation@1"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issuer": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "address": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "agentId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "address",
+            "agentId"
+          ],
+          "additionalProperties": false
+        },
+        "issuedAt": {
+          "type": "integer"
+        },
+        "retiredAt": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retirementReason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "endpoint": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "modelSlug": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "contextLength": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "listPriceMicroUsdPerMTokIn": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "listPriceMicroUsdPerMTokOut": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "url",
+            "modelSlug",
+            "contextLength",
+            "listPriceMicroUsdPerMTokIn",
+            "listPriceMicroUsdPerMTokOut"
+          ],
+          "additionalProperties": false
+        },
+        "modelIdentity": {
+          "type": "object",
+          "properties": {
+            "checkpointDigest": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "tokenizerHash": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "quantizationRecipe": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "checkpointDigest",
+            "tokenizerHash",
+            "quantizationRecipe"
+          ],
+          "additionalProperties": false
+        },
+        "servingStack": {
+          "type": "object",
+          "properties": {
+            "engine": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "containerImageDigest": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            },
+            "hardwareProfile": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "provider_declared",
+                    "issuer_observed",
+                    "issuer_constructed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "provenance"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "engine",
+            "containerImageDigest",
+            "hardwareProfile"
+          ],
+          "additionalProperties": false
+        },
+        "sampling": {
+          "type": "object",
+          "properties": {
+            "temperature": {
+              "type": "number"
+            },
+            "topP": {
+              "type": "number"
+            },
+            "topK": {
+              "type": "integer"
+            },
+            "maxTokens": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "stopSequences": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "seedHandling": {
+              "type": "string",
+              "enum": [
+                "absent",
+                "fixed",
+                "per_probe"
+              ]
+            },
+            "systemPrompt": {
+              "type": "string"
+            },
+            "routingHeaders": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "providerPinning": {
+              "type": "string"
+            },
+            "allowFallbacks": {
+              "type": "boolean"
+            },
+            "retryPolicy": {
+              "type": "object",
+              "properties": {
+                "attempts": {
+                  "type": "integer"
+                },
+                "backoffMs": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "attempts",
+                "backoffMs"
+              ],
+              "additionalProperties": false
+            },
+            "concurrency": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "credentialClass": {
+              "type": "string",
+              "enum": [
+                "contributor_enclave",
+                "probe_scoped",
+                "ephemeral"
+              ]
+            },
+            "geography": {
+              "type": "string"
+            },
+            "normalizationSpec": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "temperature",
+            "topP",
+            "topK",
+            "maxTokens",
+            "stopSequences",
+            "seedHandling",
+            "systemPrompt",
+            "routingHeaders",
+            "providerPinning",
+            "allowFallbacks",
+            "retryPolicy",
+            "concurrency",
+            "credentialClass",
+            "geography",
+            "normalizationSpec"
+          ],
+          "additionalProperties": false
+        },
+        "envelope": {
+          "type": "object",
+          "properties": {
+            "elements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "engine": {
+                    "type": "string"
+                  },
+                  "precision": {
+                    "type": "string"
+                  },
+                  "batchProfile": {
+                    "type": "string"
+                  },
+                  "kernelProfile": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "engine",
+                  "precision",
+                  "batchProfile",
+                  "kernelProfile"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "mixtureSet": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "weights": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "elementId": {
+                          "type": "string"
+                        },
+                        "weightRay": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "elementId",
+                        "weightRay"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "weights"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "provenance": {
+              "type": "string",
+              "enum": [
+                "provider_declared",
+                "issuer_observed",
+                "issuer_constructed",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "elements",
+            "mixtureSet",
+            "provenance"
+          ],
+          "additionalProperties": false
+        },
+        "detector": {
+          "type": "object",
+          "properties": {
+            "batteryCommit": {
+              "type": "string"
+            },
+            "normalizationImplHash": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "canonicalArithmeticHash": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "alphabet": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2
+            },
+            "cells": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  },
+                  "language": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "task",
+                  "language"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "batteryCommit",
+            "normalizationImplHash",
+            "canonicalArithmeticHash",
+            "alphabet",
+            "cells"
+          ],
+          "additionalProperties": false
+        },
+        "statistical": {
+          "type": "object",
+          "properties": {
+            "alphaRay": {
+              "type": "string"
+            },
+            "lambdaRay": {
+              "type": "string"
+            },
+            "m": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "n": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "nR": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "tMax": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "cellsPerRound": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "referencePoolRoot": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "probePoolRoot": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "seedChainRoot": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "beacon": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "firstRound": {
+                  "type": "integer"
+                },
+                "cadenceSeconds": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "firstRound",
+                "cadenceSeconds"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "alphaRay",
+            "lambdaRay",
+            "m",
+            "n",
+            "nR",
+            "tMax",
+            "cellsPerRound",
+            "referencePoolRoot",
+            "probePoolRoot",
+            "seedChainRoot",
+            "beacon"
+          ],
+          "additionalProperties": false
+        },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "producerClass": {
+              "type": "string",
+              "enum": [
+                "tee_proxy",
+                "contributor_enclave",
+                "mpc_tls"
+              ]
+            },
+            "k": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "n": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "voidRateBreakerBps": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "producerBondWei": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "producerClass",
+            "k",
+            "n",
+            "voidRateBreakerBps",
+            "producerBondWei"
+          ],
+          "additionalProperties": false
+        },
+        "warningRegionRay": {
+          "type": "string"
+        },
+        "seasoningRounds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema",
+        "version",
+        "issuer",
+        "issuedAt",
+        "retiredAt",
+        "retirementReason",
+        "endpoint",
+        "modelIdentity",
+        "servingStack",
+        "sampling",
+        "envelope",
+        "detector",
+        "statistical",
+        "evidence",
+        "warningRegionRay",
+        "seasoningRounds"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

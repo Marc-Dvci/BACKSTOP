@@ -9,7 +9,7 @@
 
 import {
   countResponses,
-  generateProbes,
+  roundProbes,
   CELLS,
   type Probe,
   type Hex,
@@ -79,15 +79,22 @@ export async function complete(cfg: EndpointConfig, probe: Probe): Promise<strin
   }
 }
 
-/** Run `draws` probes against one cell and return the counts over its alphabet. */
+/**
+ * Run one round's probes against one cell and return the counts over its alphabet.
+ *
+ * The probes come from the committed corpus in its permuted order, so no probe is executed twice
+ * and each round's mixture of surface forms matches the mixture the reference was measured over.
+ */
 export async function runCell(
   cfg: EndpointConfig,
   seed: Hex,
+  poolRoot: Hex,
   cellId: string,
   draws: number,
-  offset = 0,
+  round: number,
+  tMax: number,
 ): Promise<CellObservation> {
-  const probes = generateProbes(seed, cellId, offset + draws).slice(offset);
+  const probes = roundProbes(seed, poolRoot, cellId, round, draws, tMax);
   const cell = CELLS.find((c) => c.id === cellId);
   if (!cell) throw new Error(`unknown cell ${cellId}`);
 
@@ -126,14 +133,16 @@ export async function runCell(
 export async function runRound(
   cfg: EndpointConfig,
   seed: Hex,
+  poolRoot: Hex,
   cellIds: readonly string[],
   draws: number,
-  offset = 0,
+  round: number,
+  tMax: number,
   onCell?: (obs: CellObservation, index: number, total: number) => void,
 ): Promise<CellObservation[]> {
   const out: CellObservation[] = [];
   for (let i = 0; i < cellIds.length; i++) {
-    const obs = await runCell(cfg, seed, cellIds[i] as string, draws, offset);
+    const obs = await runCell(cfg, seed, poolRoot, cellIds[i] as string, draws, round, tMax);
     out.push(obs);
     onCell?.(obs, i, cellIds.length);
   }

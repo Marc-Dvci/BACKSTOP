@@ -34,6 +34,9 @@ export interface BuyFormProps {
   power: number;
   medianDelayRounds: number;
   departureRatePerYear: number;
+  /** The attestation's round cap, and how much of it is already spent. */
+  tMax: number;
+  roundsClosed: number;
 }
 
 /**
@@ -60,6 +63,8 @@ export function BuyForm(props: BuyFormProps) {
         departureRatePerYear: props.departureRatePerYear,
         power: props.power,
         medianDelayRounds: props.medianDelayRounds,
+        tMax: props.tMax,
+        roundsClosed: props.roundsClosed,
         capitalChargeAnnualBps: 800,
         poolMarginBps: 40,
       }),
@@ -288,6 +293,10 @@ export function BuyForm(props: BuyFormProps) {
               <tr>
                 <td>pool margin</td>
                 <td className="tnum">{q.components.poolMarginBps.toFixed(1)} bps</td>
+              </tr>
+              <tr>
+                <td>rounds covered</td>
+                <td className="tnum">{q.coveredRounds}</td>
               </tr>
               <tr>
                 <td>claim-eligible rounds</td>

@@ -156,7 +156,15 @@ async function cmdAudit(): Promise<never> {
 
     process.stdout.write(c.dim(`  round ${round}  cells ${selected.join(", ")}\n`));
 
-    const observations = await runRound(endpoint, cfg.probeSeed, selected, draws, round * draws);
+    const observations = await runRound(
+      endpoint,
+      cfg.probeSeed,
+      cfg.poolRoot,
+      selected,
+      draws,
+      round,
+      cfg.tMax,
+    );
     const failed = observations.filter((o) => o.errors > draws / 2);
     if (failed.length > 0) {
       console.error(c.red(`\n  the endpoint failed on ${failed.length} of ${selected.length} cells`));
@@ -332,13 +340,17 @@ function cmdQuote(): never {
     departureRatePerYear: num("departure-rate", 0.6),
     power: num("power", 1.0),
     medianDelayRounds: num("delay", 5),
+    tMax: num("tmax", 40),
     capitalChargeAnnualBps: num("capital-charge", 800),
     poolMarginBps: num("margin", 40),
   });
 
   console.log(c.bold(`\nBACKSTOP quote\n`));
   console.log(`  notional              ${notionalUsd.toLocaleString()} USDC`);
-  console.log(`  term                  ${termDays} days, ${q.eligibleRounds} claim-eligible rounds`);
+  console.log(
+    `  term                  ${termDays} days, ${q.coveredRounds} rounds covered,` +
+      ` ${q.eligibleRounds} claim-eligible after seasoning`,
+  );
   console.log(`  premium               ${(Number(q.premium) / 1e6).toFixed(2)} USDC  (${q.premiumRateBps} bps)\n`);
   console.log(`  P(departure in term)  ${(q.components.pDeparture * 100).toFixed(2)}%`);
   console.log(`  P(detected | dep.)    ${(q.components.pDetectedGivenDeparture * 100).toFixed(2)}%`);

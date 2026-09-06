@@ -392,6 +392,35 @@ export function generateProbes(seed: Hex, cellId: string, count: number): Probe[
   });
 }
 
+/**
+ * The probes one round spends on one cell.
+ *
+ * The corpus is permuted once, deterministically from the probe pool root, and each round takes
+ * the next block of that permutation. Two properties follow, and the audit needs both:
+ *
+ *   no probe is ever executed twice, so the corpus a provider could learn is always already spent
+ *   each round holds a uniform subset of the corpus, so its mixture of surface forms matches the
+ *   mixture the reference pool was measured over, and a round is not systematically different
+ *   from the reference for reasons that have nothing to do with the endpoint
+ */
+export function roundProbes(
+  probeSeed: Hex,
+  poolRootHash: Hex,
+  cellId: string,
+  round: number,
+  drawsPerRound: number,
+  tMax: number,
+): Probe[] {
+  const corpusSize = drawsPerRound * tMax;
+  const corpus = generateProbes(probeSeed, cellId, corpusSize);
+  const order = new Prng(keccakString(`${poolRootHash}|${cellId}|probes@1`)).permutation(corpusSize);
+  const slice = order.slice(round * drawsPerRound, (round + 1) * drawsPerRound);
+  if (slice.length !== drawsPerRound) {
+    throw new Error(`round ${round} is outside the committed probe corpus for ${cellId}`);
+  }
+  return slice.map((i) => corpus[i] as Probe);
+}
+
 /** The leaf a probe commits to in the probe pool. */
 export function probeLeafData(p: Probe): string {
   return `${p.probeId}|${p.cellId}|${p.system}|${p.user}`;

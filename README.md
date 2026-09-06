@@ -71,6 +71,7 @@ was written.
 | Dilution ε = 0.5 | 200 / 200, median delay 8 rounds |
 | Dilution ε = 0.3 | 200 / 200, median delay 11 rounds |
 | Dilution ε = 0.2 | 200 / 200, median delay 17 rounds |
+| Dilution ε = 0.1 | 200 / 200 once the sample size is raised, see the table below |
 
 Eight benign scenarios: each vertex held for a lifetime, each mixture held, switches mid-lifetime
 in both directions, alternation every round, and per-cell rotation across the envelope.

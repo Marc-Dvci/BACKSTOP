@@ -33,6 +33,10 @@ export interface QuoteInputs {
   power: number;
   /** Measured median rounds to crossing at that departure size. */
   medianDelayRounds: number;
+  /** The attestation's round cap. A policy can never see more rounds than remain under it. */
+  tMax: number;
+  /** Rounds the version has already closed at inception. */
+  roundsClosed?: number;
   /** Annualised cost of collateral locked for the term. */
   capitalChargeAnnualBps: number;
   /** The underwriter spread. */
@@ -50,28 +54,36 @@ export interface Quote {
     capitalChargeBps: number;
     poolMarginBps: number;
   };
-  /** The rounds a policy is exposed for, after seasoning, inside its term. */
+  /** The rounds a policy is exposed for, after seasoning, inside its term and the round cap. */
   eligibleRounds: number;
+  /** Rounds the policy actually covers, which is the term capped by the rounds that remain. */
+  coveredRounds: number;
 }
 
 const YEAR_SECONDS = 365 * 24 * 3600;
 
 export function quote(i: QuoteInputs): Quote {
+  // A policy is exposed for the shorter of its own term and what is left of the version's
+  // round cap. A version retires into a fresh one at T_max, and coverage does not carry over.
   const termRounds = Math.floor(i.termSeconds / i.roundSeconds);
-  const eligibleRounds = Math.max(0, termRounds - i.seasoningRounds);
+  const roundsLeft = Math.max(0, i.tMax - (i.roundsClosed ?? 0));
+  const coveredRounds = Math.min(termRounds, roundsLeft);
+  const eligibleRounds = Math.max(0, coveredRounds - i.seasoningRounds);
 
   // A departure is covered only when it happens with enough rounds left for the evidence to
   // reach the boundary, so the exposure window is shortened by the measured detection delay.
   const detectableRounds = Math.max(0, eligibleRounds - i.medianDelayRounds);
   const detectableSeconds = detectableRounds * i.roundSeconds;
 
-  const pDeparture = 1 - Math.exp(-i.departureRatePerYear * (i.termSeconds / YEAR_SECONDS));
-  const pDetected = i.power * (detectableSeconds / Math.max(1, i.termSeconds));
+  // Exposure is bounded by the covered window, not by the calendar term the buyer asked for.
+  const coveredSeconds = coveredRounds * i.roundSeconds;
+  const pDeparture = 1 - Math.exp(-i.departureRatePerYear * (coveredSeconds / YEAR_SECONDS));
+  const pDetected = coveredSeconds === 0 ? 0 : i.power * (detectableSeconds / coveredSeconds);
   const pFalseAlarm = i.alpha;
 
   const expectedLossFraction = pDeparture * pDetected + pFalseAlarm;
   const expectedLossBps = expectedLossFraction * 10000;
-  const capitalChargeBps = (i.capitalChargeAnnualBps * i.termSeconds) / YEAR_SECONDS;
+  const capitalChargeBps = (i.capitalChargeAnnualBps * coveredSeconds) / YEAR_SECONDS;
 
   const rateBps = expectedLossBps + capitalChargeBps + i.poolMarginBps;
   const premium = (i.notional * BigInt(Math.round(rateBps))) / 10000n;
@@ -88,6 +100,7 @@ export function quote(i: QuoteInputs): Quote {
       poolMarginBps: i.poolMarginBps,
     },
     eligibleRounds,
+    coveredRounds,
   };
 }
 

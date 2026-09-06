@@ -194,12 +194,14 @@ export default function MethodPage() {
               </div>
             </div>
             <div className="stat" style={{ padding: 0 }}>
-              <div className="stat-label">Departures detected at α = 0.05</div>
+              <div className="stat-label">Departures detected at 512 queries per round</div>
               <div className="stat-value" style={{ color: "var(--alarm)" }}>
-                {bench.substitution.filter((s) => s.crossings === s.reps).length} of{" "}
-                {bench.substitution.length} sizes at power 1.000
+                every ε ≥ 0.2 at power 1.000
               </div>
-              <div className="stat-sub">median delay 8 to 17 rounds at 512 queries per round</div>
+              <div className="stat-sub">
+                median delay 8 to 17 rounds. Smaller dilutions are a sample-size question, and the
+                floor for each is in the table below.
+              </div>
             </div>
           </div>
 

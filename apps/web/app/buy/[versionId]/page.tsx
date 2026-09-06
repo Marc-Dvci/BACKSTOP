@@ -45,6 +45,8 @@ export default async function BuyPage({ params }: { params: Promise<{ versionId:
         power={Number(curve?.power ?? 1)}
         medianDelayRounds={Number(curve?.medianDelay ?? 5)}
         departureRatePerYear={0.6}
+        tMax={endpoint.tMax}
+        roundsClosed={endpoint.closedRounds}
       />
 
       <div className="panel" style={{ marginTop: 20 }}>
