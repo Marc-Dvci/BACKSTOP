@@ -89,7 +89,13 @@ export class BackstopClient {
   constructor(opts: ClientOptions) {
     const chain = opts.chain ?? monadTestnet;
     const transport = http(opts.rpcUrl ?? chain.rpcUrls.default.http[0]);
-    this.publicClient = createPublicClient({ chain, transport });
+    // Reads are coalesced through Multicall3. Reading an endpoint's status is eight calls, and
+    // sending those individually is a burst public RPCs rate-limit.
+    this.publicClient = createPublicClient({
+      chain,
+      transport,
+      batch: { multicall: { batchSize: 1024, wait: 16 } },
+    });
     this.deployment = opts.deployment;
     if (opts.account) {
       this.walletClient = createWalletClient({ chain, transport, account: opts.account });

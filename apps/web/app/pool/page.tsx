@@ -2,7 +2,10 @@ import Link from "next/link";
 import { getEndpoints, getPolicies, getPool } from "@/lib/data";
 import { usdc, formatRay, short, untilLabel, POLICY_STATUS } from "@/lib/format";
 
-export const revalidate = 5;
+// The index is a live view of chain state, so it is rendered per request rather than
+// prerendered at build time against whatever the build machine could reach.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const metadata = { title: "Coverage pool · BACKSTOP" };
 
 export default async function PoolPage() {

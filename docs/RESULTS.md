@@ -96,13 +96,31 @@ The false-alarm control holds at every sample size.
 Qwen3-1.7B run locally through the probe battery at three quantisations. Q8_0 is a declared
 element of the envelope; Q4_K_M is the substitution the settlement tier is written against.
 
-| | Mean JSD against BF16 |
-|---|---:|
-| Q8_0, declared envelope element | see `docs/results/envelope.json` |
-| Q4_K_M, substitution | see `docs/results/envelope.json` |
+20,000 draws per cell per configuration, 480,000 completions in 79 minutes on one RTX 4070.
+
+| Cell | JSD(BF16, Q8_0) | JSD(BF16, Q4_K_M) | Separation |
+|---|---:|---:|---:|
+| `digit.en` | 0.004058 | 0.037632 | 9.27× |
+| `digit.fr` | 0.001887 | 0.034649 | 18.36× |
+| `digit.es` | 0.005268 | 0.031362 | 5.95× |
+| `digit.zh` | 0.001972 | 0.015969 | 8.10× |
+| `letter.en` | 0.003301 | 0.064968 | 19.68× |
+| `letter.fr` | 0.000708 | 0.009435 | 13.33× |
+| `letter.es` | 0.001131 | 0.028736 | 25.41× |
+| `letter.zh` | 0.001063 | 0.004462 | 4.20× |
+| **mean** | **0.002423** | **0.028402** | **11.72×** |
 
 The separation is what decides whether the settlement tier applies to a model at all. On
 `letter.en` the mode of the answer distribution flips outright between BF16 and Q4_K_M.
+
+### Caught live
+
+| Endpoint served | Result | Exit |
+|---|---|---:|
+| BF16, the attested precision | 6 rounds, log M → −1.28, consistent | 0 |
+| Q4_K_M, substituted | crossed at round 2 | 1 |
+
+`docs/results/audit-attested.json`, `docs/results/audit-substituted.json`
 
 ### Sizing the reference measurement
 

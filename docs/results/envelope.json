@@ -1,77 +1,77 @@
 {
   "model": "Qwen3-1.7B",
-  "drawsPerCell": 500,
+  "drawsPerCell": 20000,
   "attested": "BF16",
   "envelopeElement": "Q8_0",
   "substitution": "Q4_K_M",
   "cells": [
     {
       "cell": "digit.en",
-      "envelopeRay": "11982919028268384620725272",
-      "substitutionRay": "35490150314874456019161804",
-      "envelope": 0.011982919028268384,
-      "substitution": 0.03549015031487445,
-      "separation": 2.961
+      "envelopeRay": "4057807967651786062064199",
+      "substitutionRay": "37631972515971429092067500",
+      "envelope": 0.004057807967651786,
+      "substitution": 0.03763197251597143,
+      "separation": 9.273
     },
     {
       "cell": "digit.fr",
-      "envelopeRay": "3865432387248562628062451",
-      "substitutionRay": "20682628358731556435420644",
-      "envelope": 0.0038654323872485625,
-      "substitution": 0.020682628358731553,
-      "separation": 5.35
+      "envelopeRay": "1887235868866581177276277",
+      "substitutionRay": "34649443214856075277986851",
+      "envelope": 0.0018872358688665812,
+      "substitution": 0.03464944321485608,
+      "separation": 18.359
     },
     {
       "cell": "digit.es",
-      "envelopeRay": "6214635666490155574962840",
-      "substitutionRay": "24482105466838885880003757",
-      "envelope": 0.006214635666490155,
-      "substitution": 0.024482105466838884,
-      "separation": 3.939
+      "envelopeRay": "5267578569825241952100450",
+      "substitutionRay": "31361717694975067849187599",
+      "envelope": 0.005267578569825243,
+      "substitution": 0.03136171769497507,
+      "separation": 5.953
     },
     {
       "cell": "digit.zh",
-      "envelopeRay": "1841272975689654258390078",
-      "substitutionRay": "14943701605623190853887999",
-      "envelope": 0.0018412729756896542,
-      "substitution": 0.01494370160562319,
-      "separation": 8.115
+      "envelopeRay": "1971535576329445029516328",
+      "substitutionRay": "15968910170829744065420565",
+      "envelope": 0.001971535576329445,
+      "substitution": 0.015968910170829742,
+      "separation": 8.099
     },
     {
       "cell": "letter.en",
-      "envelopeRay": "6435589447001817695826459",
-      "substitutionRay": "59474971636863859557789350",
-      "envelope": 0.006435589447001817,
-      "substitution": 0.059474971636863855,
-      "separation": 9.241
+      "envelopeRay": "3301047542122204621445253",
+      "substitutionRay": "64967543575082775534537363",
+      "envelope": 0.003301047542122205,
+      "substitution": 0.06496754357508278,
+      "separation": 19.68
     },
     {
       "cell": "letter.fr",
-      "envelopeRay": "729691901391841893700198",
-      "substitutionRay": "8513930997340865918085899",
-      "envelope": 0.000729691901391842,
-      "substitution": 0.008513930997340866,
-      "separation": 11.667
+      "envelopeRay": "707581743260596771464785",
+      "substitutionRay": "9434767579475023858980273",
+      "envelope": 0.0007075817432605967,
+      "substitution": 0.009434767579475024,
+      "separation": 13.333
     },
     {
       "cell": "letter.es",
-      "envelopeRay": "5528243854344771311719050",
-      "substitutionRay": "36977754513477736947126637",
-      "envelope": 0.0055282438543447715,
-      "substitution": 0.036977754513477734,
-      "separation": 6.688
+      "envelopeRay": "1130918277072381283077098",
+      "substitutionRay": "28735841163320492836299792",
+      "envelope": 0.0011309182770723814,
+      "substitution": 0.02873584116332049,
+      "separation": 25.409
     },
     {
       "cell": "letter.zh",
-      "envelopeRay": "6204619793041937405430034",
-      "substitutionRay": "7802095127790184350739297",
-      "envelope": 0.0062046197930419374,
-      "substitution": 0.007802095127790184,
-      "separation": 1.257
+      "envelopeRay": "1062600889202402029825893",
+      "substitutionRay": "4461989946034055837200324",
+      "envelope": 0.001062600889202402,
+      "substitution": 0.004461989946034056,
+      "separation": 4.199
     }
   ],
-  "meanEnvelope": 0.005350300631684641,
-  "meanSubstitution": 0.02604591725269259,
-  "separation": 4.868,
+  "meanEnvelope": 0.00242328830429133,
+  "meanSubstitution": 0.028401523232568084,
+  "separation": 11.72,
   "jsdMax": 0.6931471805599453
 }

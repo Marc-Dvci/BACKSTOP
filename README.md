@@ -95,21 +95,68 @@ sized against the dilution its buyer wants covered before coverage is written.
 
 `make bench`
 
+### Caught on a real endpoint, live
+
+Qwen3-1.7B was served from `llama.cpp` and audited through the CLI against a committed
+attestation. Nothing was simulated: real probes, real completions, the threshold fixed before the
+first request.
+
+| Endpoint served | Attestation | Result | Exit code |
+|---|---|---|---|
+| **BF16**, the attested precision | v1 | 6 rounds, log M decayed to −1.28, **consistent** | 0 |
+| **Q4_K_M**, substituted | v1 | **crossed at round 2** | 1 |
+
+Three rounds at 8 cells and 96 draws is **2,304 single-token queries** to catch a quantisation
+swap. `backstop audit --attestation attestations/reference.json --pool pools/v1.json`
+
 ### Envelope width, on a real model
 
-Qwen3-1.7B was run locally at three quantisations through the probe battery, 500 draws per cell
-per configuration, 12,000 completions in 2.6 minutes on one RTX 4070. Q8_0 is a declared element
+Qwen3-1.7B run locally at three quantisations through the probe battery, **20,000 draws per cell
+per configuration**, 480,000 completions in 79 minutes on one RTX 4070. Q8_0 is a declared element
 of the envelope; Q4_K_M is the substitution.
 
 | | Mean JSD against BF16 |
 |---|---:|
-| Q8_0, declared envelope element | 0.005350 |
-| Q4_K_M, substitution | 0.026045 |
-| **Separation** | **4.87×** |
+| Q8_0, declared envelope element | 0.002423 |
+| Q4_K_M, substitution | 0.028402 |
+| **Separation** | **11.72×** |
 
-The substitution sits 4.87 times further from the attested precision than the permitted
+The substitution sits 11.72 times further from the attested precision than the permitted
 configuration does, measured on the same cells with the same arithmetic. On `letter.en` the mode
 of the answer distribution flips outright between BF16 and Q4_K_M. `make harness`
+
+### Sizing an attestation before it can be sold
+
+R(c,j) is estimated from a finite number of draws and carries its own sampling error. When that
+error is comparable to the envelope width, the audit cannot separate a permitted configuration
+from a departure and a conforming endpoint crosses on the noise in its own reference.
+
+Issuance bounds that error by bootstrap and **refuses to issue** above 10% of the envelope
+width, printing the sample size required:
+
+```
+  cell             reference noise    envelope width     ratio
+  digit.en                0.000064          0.004058    0.015x
+  letter.fr               0.000049          0.000708    0.069x
+  mean                    0.000055          0.002423    0.023x
+  measured with 20,000 draws per cell per configuration
+  within the 10% budget, so the attestation may be issued
+```
+
+At 500 draws the same check reports `0.425x` and refuses, naming the sample size that would clear
+it. This is the same class of precondition as the calibration granularity `AttestationRegistry`
+enforces on chain: an attestation is sized before coverage is written, never after a claim.
+
+### The sampling contract travels with the reference
+
+The attestation pins every parameter the audit sends, down to provider-specific switches, and one
+function builds every request body from it. The harness that measures the reference, the CLI that
+audits, the evidence producer and the CRE workflow emit byte-identical bodies for the same probe,
+and the CLI refuses to run when the contract hash does not match the one the reference was
+measured under.
+
+That is not a hygiene note. Qwen3 exposes a reasoning mode, and to a single-token battery the same
+weights with thinking on and thinking off are two different endpoints.
 
 ### The two implementations agree exactly
 

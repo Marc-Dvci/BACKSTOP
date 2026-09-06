@@ -55,7 +55,7 @@ const wanted = String(arg("config", "bf16,q8_0,q4km")).split(",");
 
 // ---------------------------------------------------------------- the battery
 
-const { CELLS, generateProbes, countResponses } = await import(
+const { CELLS, generateProbes, countResponses, buildChatRequest, samplingContractHash } = await import(
   "../packages/core/dist/index.js"
 ).catch(() => {
   throw new Error("run `pnpm --filter @backstop/core build` before the harness");
@@ -63,6 +63,19 @@ const { CELLS, generateProbes, countResponses } = await import(
 
 const PROBE_SEED = "0x" + "11".repeat(32);
 const cells = CELLS.slice(0, CELL_COUNT);
+
+/**
+ * The sampling contract the reference is measured under.
+ *
+ * Every later caller sends exactly this. Qwen3 exposes a reasoning mode, and the same model
+ * with thinking on and thinking off is, to a single-token battery, two different endpoints.
+ */
+const SAMPLING = {
+  temperature: 1,
+  topP: 1,
+  maxTokens: 24,
+  extraBody: { chat_template_kwargs: { enable_thinking: false } },
+};
 
 // ---------------------------------------------------------------- server control
 
@@ -119,23 +132,11 @@ async function withServer(modelPath, port, fn) {
 
 // ---------------------------------------------------------------- probing
 
-async function complete(port, probe, temperature) {
+async function complete(port, probe) {
   const res = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model: "local",
-      messages: [
-        { role: "system", content: probe.system },
-        { role: "user", content: probe.user },
-      ],
-      temperature,
-      top_p: 1,
-      // A longer completion than the answer needs, so the one-token ceiling is not a tell.
-      max_tokens: 24,
-      // Qwen3 exposes a reasoning mode; the sampling contract pins it off for every audit.
-      chat_template_kwargs: { enable_thinking: false },
-    }),
+    body: JSON.stringify(buildChatRequest("local", probe, SAMPLING)),
   });
   if (!res.ok) return null;
   const body = await res.json();
@@ -147,7 +148,7 @@ async function measureCell(port, cell, draws, concurrency = CONCURRENCY) {
   const raws = [];
   for (let i = 0; i < probes.length; i += concurrency) {
     const batch = probes.slice(i, i + concurrency);
-    const out = await Promise.all(batch.map((p) => complete(port, p, 1.0)));
+    const out = await Promise.all(batch.map((p) => complete(port, p)));
     for (const text of out) if (text !== null) raws.push(text);
   }
   const { counts, unmatched } = countResponses(raws, cell.alphabet);
@@ -204,6 +205,8 @@ writeFileSync(
       engine: "llama.cpp server",
       probeSeed: PROBE_SEED,
       drawsPerCell: DRAWS,
+      sampling: SAMPLING,
+      samplingContractHash: samplingContractHash(SAMPLING),
       cells: cells.map((c) => ({ id: c.id, task: c.task, language: c.language, alphabet: c.alphabet })),
       configs: results,
       generatedAt: Math.floor(Date.now() / 1000),

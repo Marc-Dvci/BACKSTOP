@@ -10,29 +10,30 @@
 import {
   countResponses,
   roundProbes,
+  buildChatRequest,
+  DEFAULT_SAMPLING,
   CELLS,
   type Probe,
   type Hex,
+  type WireSamplingContract,
 } from "@backstop/core";
 
 export interface EndpointConfig {
   baseUrl: string;
   model: string;
   apiKey?: string;
-  /** Sampling contract fields sent on every request. */
-  temperature: number;
-  topP: number;
-  maxTokens: number;
+  /**
+   * The sampling contract the attestation pinned. It is sent verbatim, because a reference
+   * measured under one contract cannot audit under another.
+   */
+  sampling: WireSamplingContract;
   concurrency: number;
   headers?: Record<string, string>;
   timeoutMs: number;
 }
 
 export const DEFAULT_ENDPOINT: Omit<EndpointConfig, "baseUrl" | "model"> = {
-  temperature: 1,
-  topP: 1,
-  // A longer completion than the answer needs, so the one-token ceiling is not a tell.
-  maxTokens: 24,
+  sampling: DEFAULT_SAMPLING,
   concurrency: 8,
   timeoutMs: 30_000,
 };
@@ -58,16 +59,7 @@ export async function complete(cfg: EndpointConfig, probe: Probe): Promise<strin
         ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
         ...cfg.headers,
       },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: [
-          { role: "system", content: probe.system },
-          { role: "user", content: probe.user },
-        ],
-        temperature: cfg.temperature,
-        top_p: cfg.topP,
-        max_tokens: cfg.maxTokens,
-      }),
+      body: JSON.stringify(buildChatRequest(cfg.model, probe, cfg.sampling)),
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };

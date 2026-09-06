@@ -16,3 +16,17 @@ Envelope harness  8 cells  20000 draws per cell per configuration
     digit.zh        20000 matched  mode 3          92.2%  168.1s
     letter.en       20000 matched  mode b          55.1%  159.9s
     letter.fr       20000 matched  mode a          46.1%  221.8s
+    letter.es       20000 matched  mode a          44.5%  175.4s
+    letter.zh       20000 matched  mode b          45.6%  166.1s
+  q4km (Q4_K_M)  starting llama-server
+    digit.en        20000 matched  mode 3          89.8%  187.6s
+    digit.fr        20000 matched  mode 3          85.8%  240.9s
+    digit.es        20000 matched  mode 3          76.5%  200.0s
+    digit.zh        20000 matched  mode 3          92.3%  196.6s
+    letter.en       20000 matched  mode d          47.7%  183.3s
+    letter.fr       20000 matched  mode a          44.5%  207.6s
+    letter.es       20000 matched  mode a          50.3%  189.1s
+    letter.zh       20000 matched  mode b          46.1%  149.2s
+
+wrote D:\Boulot temp\Monad\backstop\bench\out\laws.json  in 79.4 min
+HARNESS DONE rc=0

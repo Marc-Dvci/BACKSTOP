@@ -308,7 +308,7 @@ export default function MethodPage() {
         <div className="panel-body">
           <p className="prose" style={{ fontSize: 13.5, marginBottom: 16 }}>
             {envelope.model} was run locally at three quantisations through the probe battery,{" "}
-            {envelope.drawsPerCell} draws per cell per configuration. {envelope.envelopeElement} is a
+            {envelope.drawsPerCell.toLocaleString()} draws per cell per configuration. {envelope.envelopeElement} is a
             declared element of the envelope; {envelope.substitution} is the substitution. The
             separation is what decides whether the settlement tier applies to a model at all.
           </p>

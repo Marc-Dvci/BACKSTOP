@@ -4,7 +4,10 @@ import { EProcessChart, type Trace } from "@/components/EProcessChart";
 import { getEndpoint, getPolicies, getRounds } from "@/lib/data";
 import { formatRay, usdc, short, untilLabel, POLICY_STATUS } from "@/lib/format";
 
-export const revalidate = 5;
+// The index is a live view of chain state, so it is rendered per request rather than
+// prerendered at build time against whatever the build machine could reach.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function PolicyPage({ params }: { params: Promise<{ policyId: string }> }) {
   const { policyId } = await params;

@@ -204,10 +204,10 @@ const attestation = {
   servingStack: {
     engine: { value: doc.engine, provenance: "provider_declared" },
   },
-  sampling: {
-    temperature: 1,
-    topP: 1,
-    maxTokens: 24,
+  // The exact contract the reference was measured under. Every caller sends this verbatim.
+  sampling: doc.sampling,
+  samplingContractHash: doc.samplingContractHash,
+  samplingPolicy: {
     seedHandling: "absent",
     allowFallbacks: false,
     concurrency: 8,

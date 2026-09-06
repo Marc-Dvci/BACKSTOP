@@ -36,6 +36,14 @@
     "temperature": 1,
     "topP": 1,
     "maxTokens": 24,
+    "extraBody": {
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    }
+  },
+  "samplingContractHash": "0x1746c52e812efb3418f89582bebe59a2201df93c8e6b529063a9f3f868014671",
+  "samplingPolicy": {
     "seedHandling": "absent",
     "allowFallbacks": false,
     "concurrency": 8,
@@ -64,7 +72,7 @@
     "cfg-q8_0",
     "mix-50"
   ],
-  "poolRoot": "0xf8b230f540a5b6ced9b3c2ee590125064111846d5500fbcd7587f110183a7104",
+  "poolRoot": "0x73ff0b60488407c85fe02f61b3bcc4fef17bc2a1451f67bb440bf356222f9611",
   "seedChainRoot": "0x27f44f79f309c62231144f4091d1285e087281c8b7198cc94a12c464ee645924",
   "probeSeed": "0x1111111111111111111111111111111111111111111111111111111111111111",
   "canonicalArithmeticHash": "0x396a8c70eed71797834c7de8965f1c74fccfd38a8046d9806fb12bcc8bb55366",
@@ -97,5 +105,12 @@
   },
   "seasoningRounds": 2,
   "warningRay": "8000000000000000000000000000",
-  "generatedAt": 1788713978
+  "sizing": {
+    "drawsMeasuredPerCell": 20000,
+    "referenceNoise": 0.00005528738036065819,
+    "envelopeWidth": 0.00242328830429133,
+    "noiseToEnvelopeRatio": 0.022815023809899714,
+    "noiseBudget": 0.1
+  },
+  "generatedAt": 1788721483
 }

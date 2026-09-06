@@ -2,7 +2,10 @@ import Link from "next/link";
 import { getEndpoints, getPolicies, getPool, dataSource } from "@/lib/data";
 import { formatRay, expRay, usdc, short } from "@/lib/format";
 
-export const revalidate = 5;
+// The index is a live view of chain state, so it is rendered per request rather than
+// prerendered at build time against whatever the build machine could reach.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function IndexPage() {
   // The source is resolved first, so every panel below agrees about what it is reading.

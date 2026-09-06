@@ -28,6 +28,9 @@ import {
   CELLS,
   CANONICAL_ARITHMETIC_SPEC,
   CANONICAL_ARITHMETIC_HASH,
+  DEFAULT_SAMPLING,
+  samplingContractHash,
+  type WireSamplingContract,
   type Hex,
   type ReferencePool,
   type EngineParams,
@@ -91,6 +94,8 @@ interface AuditConfig {
   probeSeed: Hex;
   baseUrl: string;
   model: string;
+  sampling?: WireSamplingContract;
+  samplingContractHash?: string;
 }
 
 function loadConfig(path: string): AuditConfig {
@@ -122,7 +127,11 @@ async function cmdAudit(): Promise<never> {
   const draws = num("draws", cfg.n);
   const apiKey = process.env[flag("api-key-env") ?? "BACKSTOP_API_KEY"];
 
-  const endpoint: EndpointConfig = { ...DEFAULT_ENDPOINT, baseUrl, model, apiKey };
+  // The attestation pins the sampling contract. Sending anything else would make the audit
+  // measure its own parameters instead of the endpoint, so it is read from the version and
+  // printed before the first request goes out.
+  const sampling = cfg.sampling ?? DEFAULT_SAMPLING;
+  const endpoint: EndpointConfig = { ...DEFAULT_ENDPOINT, baseUrl, model, apiKey, sampling };
 
   const params: EngineParams = {
     poolRoot: cfg.poolRoot,

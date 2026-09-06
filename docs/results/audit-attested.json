@@ -1,0 +1,936 @@
+{
+  "endpoint": "http://127.0.0.1:8080/v1",
+  "model": "local",
+  "version": 1,
+  "alpha": "50000000000000002382364672",
+  "boundaryRay": "2995732273553990945787930126",
+  "crossed": false,
+  "crossedAt": null,
+  "logMRay": "-1284594100699573858312627335",
+  "rounds": [
+    {
+      "round": 0,
+      "seed": "0x3e3b96b07386d8aa2efcdab12b0900fb7926869060de0fdb6e705759ebf79241",
+      "cells": [
+        "letter.zh",
+        "digit.fr",
+        "digit.zh",
+        "letter.en",
+        "digit.es",
+        "letter.es",
+        "digit.en",
+        "letter.fr"
+      ],
+      "observations": [
+        {
+          "cellId": "letter.zh",
+          "counts": [
+            11,
+            42,
+            9,
+            27,
+            3,
+            2,
+            0,
+            2
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 103
+        },
+        {
+          "cellId": "digit.fr",
+          "counts": [
+            0,
+            0,
+            0,
+            65,
+            2,
+            29,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 99
+        },
+        {
+          "cellId": "digit.zh",
+          "counts": [
+            3,
+            0,
+            0,
+            89,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 114
+        },
+        {
+          "cellId": "letter.en",
+          "counts": [
+            6,
+            41,
+            33,
+            16,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 112
+        },
+        {
+          "cellId": "digit.es",
+          "counts": [
+            13,
+            0,
+            1,
+            49,
+            2,
+            31,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 104
+        },
+        {
+          "cellId": "letter.es",
+          "counts": [
+            46,
+            16,
+            6,
+            14,
+            7,
+            7,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 122
+        },
+        {
+          "cellId": "digit.en",
+          "counts": [
+            1,
+            0,
+            1,
+            77,
+            3,
+            11,
+            0,
+            3,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 115
+        },
+        {
+          "cellId": "letter.fr",
+          "counts": [
+            41,
+            38,
+            16,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 113
+        }
+      ],
+      "eRoundRay": "671351140286659504997004573",
+      "logMRay": "-398462969966821867566903360"
+    },
+    {
+      "round": 1,
+      "seed": "0x8760a5b54fc1ff7095422be81899c7c9702b4a07a5af3eb3a2b379ffb768867d",
+      "cells": [
+        "letter.es",
+        "digit.es",
+        "letter.fr",
+        "digit.fr",
+        "letter.en",
+        "letter.zh",
+        "digit.zh",
+        "digit.en"
+      ],
+      "observations": [
+        {
+          "cellId": "letter.es",
+          "counts": [
+            41,
+            20,
+            7,
+            14,
+            9,
+            5,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 117
+        },
+        {
+          "cellId": "digit.es",
+          "counts": [
+            15,
+            1,
+            0,
+            54,
+            3,
+            22,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 110
+        },
+        {
+          "cellId": "letter.fr",
+          "counts": [
+            42,
+            32,
+            16,
+            5,
+            1,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 112
+        },
+        {
+          "cellId": "digit.fr",
+          "counts": [
+            0,
+            0,
+            0,
+            69,
+            1,
+            26,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 117
+        },
+        {
+          "cellId": "letter.en",
+          "counts": [
+            4,
+            43,
+            33,
+            16,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 110
+        },
+        {
+          "cellId": "letter.zh",
+          "counts": [
+            11,
+            45,
+            6,
+            29,
+            0,
+            3,
+            0,
+            2
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 114
+        },
+        {
+          "cellId": "digit.zh",
+          "counts": [
+            5,
+            0,
+            0,
+            90,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 117
+        },
+        {
+          "cellId": "digit.en",
+          "counts": [
+            0,
+            0,
+            1,
+            67,
+            3,
+            18,
+            0,
+            7,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 133
+        }
+      ],
+      "eRoundRay": "684457058187751718953943792",
+      "logMRay": "-777592340757011443232334294"
+    },
+    {
+      "round": 2,
+      "seed": "0x233731e748b80fbe1c46e49e22712fe08d884838fc2d7ddaa98f32d4eb8d2920",
+      "cells": [
+        "digit.es",
+        "letter.en",
+        "letter.zh",
+        "digit.en",
+        "digit.zh",
+        "digit.fr",
+        "letter.es",
+        "letter.fr"
+      ],
+      "observations": [
+        {
+          "cellId": "digit.es",
+          "counts": [
+            11,
+            0,
+            0,
+            65,
+            2,
+            18,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 152
+        },
+        {
+          "cellId": "letter.en",
+          "counts": [
+            4,
+            41,
+            33,
+            17,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 193
+        },
+        {
+          "cellId": "letter.zh",
+          "counts": [
+            9,
+            49,
+            8,
+            28,
+            0,
+            2,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 256
+        },
+        {
+          "cellId": "digit.en",
+          "counts": [
+            2,
+            0,
+            3,
+            70,
+            3,
+            16,
+            0,
+            2,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 214
+        },
+        {
+          "cellId": "digit.zh",
+          "counts": [
+            2,
+            0,
+            0,
+            89,
+            1,
+            3,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 226
+        },
+        {
+          "cellId": "digit.fr",
+          "counts": [
+            0,
+            0,
+            0,
+            61,
+            6,
+            29,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 214
+        },
+        {
+          "cellId": "letter.es",
+          "counts": [
+            45,
+            16,
+            7,
+            15,
+            6,
+            6,
+            0,
+            1
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 254
+        },
+        {
+          "cellId": "letter.fr",
+          "counts": [
+            40,
+            34,
+            15,
+            6,
+            1,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 249
+        }
+      ],
+      "eRoundRay": "757972986345992777528324068",
+      "logMRay": "-1054699872797800388234751650"
+    },
+    {
+      "round": 3,
+      "seed": "0x573ce49a18e608aa8ed61aa1e9164ebd022fa5b02dec9a7d7c8f48c7ae0fb144",
+      "cells": [
+        "digit.es",
+        "letter.zh",
+        "digit.en",
+        "letter.fr",
+        "letter.es",
+        "letter.en",
+        "digit.fr",
+        "digit.zh"
+      ],
+      "observations": [
+        {
+          "cellId": "digit.es",
+          "counts": [
+            9,
+            0,
+            1,
+            54,
+            1,
+            30,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 116
+        },
+        {
+          "cellId": "letter.zh",
+          "counts": [
+            7,
+            49,
+            10,
+            29,
+            1,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 118
+        },
+        {
+          "cellId": "digit.en",
+          "counts": [
+            0,
+            0,
+            1,
+            60,
+            4,
+            21,
+            0,
+            10,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 147
+        },
+        {
+          "cellId": "letter.fr",
+          "counts": [
+            46,
+            34,
+            14,
+            2,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 144
+        },
+        {
+          "cellId": "letter.es",
+          "counts": [
+            44,
+            19,
+            8,
+            12,
+            9,
+            4,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 126
+        },
+        {
+          "cellId": "letter.en",
+          "counts": [
+            3,
+            48,
+            32,
+            12,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 123
+        },
+        {
+          "cellId": "digit.fr",
+          "counts": [
+            0,
+            0,
+            0,
+            64,
+            1,
+            31,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 113
+        },
+        {
+          "cellId": "digit.zh",
+          "counts": [
+            4,
+            0,
+            0,
+            91,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 110
+        }
+      ],
+      "eRoundRay": "791131058622558721143759934",
+      "logMRay": "-1288991510477029672239518700"
+    },
+    {
+      "round": 4,
+      "seed": "0x37b71cfaa6de0dfbc68d3d94816a1a10a6f65a0d7de55a5f5908b742d05ce3d9",
+      "cells": [
+        "digit.en",
+        "digit.zh",
+        "letter.en",
+        "digit.es",
+        "letter.fr",
+        "digit.fr",
+        "letter.zh",
+        "letter.es"
+      ],
+      "observations": [
+        {
+          "cellId": "digit.en",
+          "counts": [
+            2,
+            0,
+            2,
+            70,
+            3,
+            13,
+            0,
+            6,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 268
+        },
+        {
+          "cellId": "digit.zh",
+          "counts": [
+            4,
+            0,
+            0,
+            85,
+            2,
+            4,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 222
+        },
+        {
+          "cellId": "letter.en",
+          "counts": [
+            1,
+            60,
+            13,
+            22,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 239
+        },
+        {
+          "cellId": "digit.es",
+          "counts": [
+            15,
+            0,
+            0,
+            58,
+            3,
+            20,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 143
+        },
+        {
+          "cellId": "letter.fr",
+          "counts": [
+            47,
+            30,
+            13,
+            6,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 175
+        },
+        {
+          "cellId": "digit.fr",
+          "counts": [
+            0,
+            0,
+            0,
+            55,
+            2,
+            38,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 282
+        },
+        {
+          "cellId": "letter.zh",
+          "counts": [
+            11,
+            53,
+            9,
+            20,
+            0,
+            3,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 243
+        },
+        {
+          "cellId": "letter.es",
+          "counts": [
+            49,
+            15,
+            5,
+            14,
+            9,
+            4,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 226
+        }
+      ],
+      "eRoundRay": "1041208018914225575706194797",
+      "logMRay": "-1248609914760436718254838724"
+    },
+    {
+      "round": 5,
+      "seed": "0xbe17eec52d0b6e1cdaf2e88c69dfd231cf112ecaaa61ccab91fe33be0d77c138",
+      "cells": [
+        "digit.fr",
+        "digit.en",
+        "letter.es",
+        "digit.zh",
+        "letter.fr",
+        "letter.en",
+        "letter.zh",
+        "digit.es"
+      ],
+      "observations": [
+        {
+          "cellId": "digit.fr",
+          "counts": [
+            0,
+            0,
+            0,
+            59,
+            5,
+            32,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 210
+        },
+        {
+          "cellId": "digit.en",
+          "counts": [
+            1,
+            0,
+            1,
+            66,
+            9,
+            10,
+            0,
+            9,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 148
+        },
+        {
+          "cellId": "letter.es",
+          "counts": [
+            53,
+            22,
+            6,
+            12,
+            2,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 139
+        },
+        {
+          "cellId": "digit.zh",
+          "counts": [
+            4,
+            0,
+            0,
+            89,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 149
+        },
+        {
+          "cellId": "letter.fr",
+          "counts": [
+            46,
+            33,
+            12,
+            5,
+            0,
+            0,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 138
+        },
+        {
+          "cellId": "letter.en",
+          "counts": [
+            7,
+            47,
+            24,
+            17,
+            0,
+            1,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 131
+        },
+        {
+          "cellId": "letter.zh",
+          "counts": [
+            12,
+            48,
+            9,
+            23,
+            1,
+            1,
+            1,
+            1
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 138
+        },
+        {
+          "cellId": "digit.es",
+          "counts": [
+            11,
+            0,
+            2,
+            56,
+            0,
+            23,
+            0,
+            4,
+            0,
+            0
+          ],
+          "unmatched": 0,
+          "errors": 0,
+          "latencyMsP50": 180
+        }
+      ],
+      "eRoundRay": "964655548484056377919860408",
+      "logMRay": "-1284594100699573858312627335"
+    }
+  ]
+}

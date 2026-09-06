@@ -29,11 +29,39 @@ export function isDeployed(): boolean {
   }
 }
 
+/**
+ * A read client that batches.
+ *
+ * Rendering the index reads eight quantities per attestation version plus the pool and every
+ * policy. Sent as individual `eth_call`s that is a burst the public RPC rate-limits, so the
+ * calls are coalesced through Multicall3 at the canonical address, which Monad has deployed.
+ * One page render becomes a handful of requests instead of dozens.
+ */
 export function client() {
   return createPublicClient({
     chain: monadTestnet,
     transport: http(process.env.MONAD_RPC_URL ?? monadTestnet.rpcUrls.default.http[0]),
+    batch: { multicall: { batchSize: 1024, wait: 16 } },
   });
+}
+
+
+/**
+ * One multicall, results returned untyped.
+ *
+ * viem's multicall types are inferred from a literal tuple of calls; these batches are built
+ * dynamically from the version count, so the results are decoded positionally by the caller.
+ */
+type BatchCall = {
+  address: Address;
+  abi: unknown;
+  functionName: string;
+  args?: readonly unknown[];
+};
+
+async function batchRead(contracts: BatchCall[]): Promise<unknown[]> {
+  const results = await client().multicall({ allowFailure: false, contracts: contracts as never });
+  return results as unknown as unknown[];
 }
 
 export interface EndpointRow {
@@ -92,66 +120,60 @@ export async function readEndpoints(): Promise<EndpointRow[]> {
   const d = deployment();
   const c = client();
 
-  const count = (await c.readContract({
-    address: d.attestationRegistry,
-    abi: attestationRegistryAbi,
-    functionName: "versionCount",
-  })) as bigint;
-
-  const rows: EndpointRow[] = [];
-  for (let i = 1n; i <= count; i++) {
-    const v = (await c.readContract({
+  const count = Number(
+    (await c.readContract({
       address: d.attestationRegistry,
       abi: attestationRegistryAbi,
-      functionName: "getVersion",
-      args: [i],
-    })) as {
+      functionName: "versionCount",
+    })) as bigint,
+  );
+  if (count === 0) return [];
+
+  const ids = Array.from({ length: count }, (_, k) => BigInt(k + 1));
+
+  // Eight quantities per version, issued as one multicall rather than as a burst of eth_calls
+  // that a public RPC rate-limits. Reading the whole index costs one request.
+  const results = await batchRead(
+    ids.flatMap((i) => [
+      { address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "getVersion", args: [i] },
+      { address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "settlementEligible", args: [i] },
+      { address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "boundaryRay", args: [i] },
+      { address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "warningLogRay", args: [i] },
+      { address: d.auditRegistry, abi: auditRegistryAbi, functionName: "closedRounds", args: [i] },
+      { address: d.auditRegistry, abi: auditRegistryAbi, functionName: "versionLog", args: [i] },
+      { address: d.auditRegistry, abi: auditRegistryAbi, functionName: "inWarningRegion", args: [i] },
+      { address: d.auditRegistry, abi: auditRegistryAbi, functionName: "voidRateBps", args: [i] },
+    ]),
+  );
+
+  const rows: EndpointRow[] = [];
+  for (let k = 0; k < count; k++) {
+    const base = k * 8;
+    const v = results[base] as {
       issuer: Address;
       endpointId: Hex;
       status: number;
-      unknownFieldMask: number;
       seasoningRounds: number;
-      stats: {
-        alphaRay: bigint;
-        lambdaRay: bigint;
-        warningRay: bigint;
-        m: number;
-        n: number;
-        tMax: number;
-        cellsPerRound: number;
-        mixtureSize: number;
-      };
+      stats: { alphaRay: bigint; tMax: number; m: number; n: number; cellsPerRound: number; mixtureSize: number };
       commitments: { attestationDigest: Hex; referencePoolRoot: Hex };
       uri: string;
     };
-
-    const [eligible, boundaryRay, warningLogRay, closedRounds, versionLogRay, warning, voidRateBps] =
-      await Promise.all([
-        c.readContract({ address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "settlementEligible", args: [i] }),
-        c.readContract({ address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "boundaryRay", args: [i] }),
-        c.readContract({ address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "warningLogRay", args: [i] }),
-        c.readContract({ address: d.auditRegistry, abi: auditRegistryAbi, functionName: "closedRounds", args: [i] }),
-        c.readContract({ address: d.auditRegistry, abi: auditRegistryAbi, functionName: "versionLog", args: [i] }),
-        c.readContract({ address: d.auditRegistry, abi: auditRegistryAbi, functionName: "inWarningRegion", args: [i] }),
-        c.readContract({ address: d.auditRegistry, abi: auditRegistryAbi, functionName: "voidRateBps", args: [i] }),
-      ]);
-
     const meta = parseUri(v.uri);
     rows.push({
-      versionId: Number(i),
+      versionId: k + 1,
       endpointId: v.endpointId,
       label: meta.label,
       model: meta.model,
       provider: meta.provider,
       issuer: v.issuer,
-      settlementEligible: eligible as boolean,
+      settlementEligible: results[base + 1] as boolean,
       status: Number(v.status),
-      closedRounds: Number(closedRounds),
-      versionLogRay: versionLogRay as bigint,
-      boundaryRay: boundaryRay as bigint,
-      warningLogRay: warningLogRay as bigint,
-      inWarningRegion: warning as boolean,
-      voidRateBps: Number(voidRateBps),
+      closedRounds: Number(results[base + 4]),
+      versionLogRay: results[base + 5] as bigint,
+      boundaryRay: results[base + 2] as bigint,
+      warningLogRay: results[base + 3] as bigint,
+      inWarningRegion: results[base + 6] as boolean,
+      voidRateBps: Number(results[base + 7]),
       alphaRay: v.stats.alphaRay,
       tMax: Number(v.stats.tMax),
       m: Number(v.stats.m),
@@ -178,16 +200,20 @@ export async function readRounds(versionId: number): Promise<RoundRow[]> {
       args: [BigInt(versionId)],
     })) as number,
   );
+  if (closed === 0) return [];
 
-  const rows: RoundRow[] = [];
-  for (let i = 0; i < closed; i++) {
-    const r = (await c.readContract({
+  const records = await batchRead(
+    Array.from({ length: closed }, (_, i) => ({
       address: d.auditRegistry,
       abi: auditRegistryAbi,
       functionName: "getRound",
       args: [BigInt(versionId), i],
-    })) as Record<string, unknown>;
-    rows.push({
+    })),
+  );
+
+  return records.map((raw, i) => {
+    const r = raw as Record<string, unknown>;
+    return {
       index: i,
       state: Number(r.state),
       eRoundRay: r.eRoundRay as bigint,
@@ -199,20 +225,19 @@ export async function readRounds(versionId: number): Promise<RoundRow[]> {
       closedAt: Number(r.closedAt),
       scheduled: Number(r.scheduled),
       voided: Number(r.voided),
-    });
-  }
-  return rows;
+    };
+  });
 }
 
 export async function readPool(): Promise<PoolRow> {
   const d = deployment();
   const c = client();
-  const [totalAssets, reservedCapital, freeCapital, maxNotional, totalShares] = await Promise.all([
-    c.readContract({ address: d.coveragePool, abi: coveragePoolAbi, functionName: "totalAssets" }),
-    c.readContract({ address: d.coveragePool, abi: coveragePoolAbi, functionName: "reservedCapital" }),
-    c.readContract({ address: d.coveragePool, abi: coveragePoolAbi, functionName: "freeCapital" }),
-    c.readContract({ address: d.coveragePool, abi: coveragePoolAbi, functionName: "maxNotional" }),
-    c.readContract({ address: d.coveragePool, abi: coveragePoolAbi, functionName: "totalShares" }),
+  const [totalAssets, reservedCapital, freeCapital, maxNotional, totalShares] = await batchRead([
+    { address: d.coveragePool, abi: coveragePoolAbi, functionName: "totalAssets" },
+    { address: d.coveragePool, abi: coveragePoolAbi, functionName: "reservedCapital" },
+    { address: d.coveragePool, abi: coveragePoolAbi, functionName: "freeCapital" },
+    { address: d.coveragePool, abi: coveragePoolAbi, functionName: "maxNotional" },
+    { address: d.coveragePool, abi: coveragePoolAbi, functionName: "totalShares" },
   ]);
   return {
     totalAssets: totalAssets as bigint,
@@ -248,24 +273,30 @@ export async function readPolicies(): Promise<PolicyRow[]> {
       functionName: "policyCount",
     })) as bigint,
   );
+  if (count === 0) return [];
 
-  const rows: PolicyRow[] = [];
-  for (let i = 1; i <= count; i++) {
-    const p = (await c.readContract({
-      address: d.policyRegistry,
-      abi: policyRegistryAbi,
-      functionName: "policy",
-      args: [BigInt(i)],
-    })) as Record<string, unknown>;
+  const ids = Array.from({ length: count }, (_, k) => BigInt(k + 1));
+  const core = await batchRead(
+    ids.flatMap((i) => [
+      { address: d.policyRegistry, abi: policyRegistryAbi, functionName: "policy", args: [i] },
+      { address: d.policyRegistry, abi: policyRegistryAbi, functionName: "policyLog", args: [i] },
+      { address: d.settlement, abi: settlementAbi, functionName: "redeemed", args: [i] },
+    ]),
+  );
 
-    const [logRay, boundaryRay, redeemed] = await Promise.all([
-      c.readContract({ address: d.policyRegistry, abi: policyRegistryAbi, functionName: "policyLog", args: [BigInt(i)] }),
-      c.readContract({ address: d.attestationRegistry, abi: attestationRegistryAbi, functionName: "boundaryRay", args: [p.versionId as bigint] }),
-      c.readContract({ address: d.settlement, abi: settlementAbi, functionName: "redeemed", args: [BigInt(i)] }),
-    ]);
+  const boundaries = await batchRead(
+    ids.map((_, k) => ({
+      address: d.attestationRegistry,
+      abi: attestationRegistryAbi,
+      functionName: "boundaryRay",
+      args: [(core[k * 3] as { versionId: bigint }).versionId],
+    })),
+  );
 
-    rows.push({
-      policyId: i,
+  return ids.map((_, k) => {
+    const p = core[k * 3] as Record<string, unknown>;
+    return {
+      policyId: k + 1,
       buyer: p.buyer as Address,
       versionId: Number(p.versionId),
       notional: p.notional as bigint,
@@ -274,12 +305,11 @@ export async function readPolicies(): Promise<PolicyRow[]> {
       inceptionRound: Number(p.inceptionRound),
       expiryAt: Number(p.expiryAt),
       status: Number(p.status),
-      policyLogRay: logRay as bigint,
-      boundaryRay: boundaryRay as bigint,
-      redeemed: redeemed as boolean,
-    });
-  }
-  return rows;
+      policyLogRay: core[k * 3 + 1] as bigint,
+      boundaryRay: boundaries[k] as bigint,
+      redeemed: core[k * 3 + 2] as boolean,
+    };
+  });
 }
 
 /** Attestation URIs carry a compact label so the index reads without a second fetch. */

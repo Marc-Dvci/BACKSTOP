@@ -9,6 +9,9 @@ export const monadTestnet = defineChain({
   blockExplorers: {
     default: { name: "Monad Explorer", url: "https://testnet.monadexplorer.com" },
   },
+  contracts: {
+    multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" },
+  },
   testnet: true,
 });
 
@@ -19,6 +22,9 @@ export const monadMainnet = defineChain({
   rpcUrls: { default: { http: ["https://rpc.monad.xyz"] } },
   blockExplorers: {
     default: { name: "Monad Explorer", url: "https://monadexplorer.com" },
+  },
+  contracts: {
+    multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" },
   },
 });
 

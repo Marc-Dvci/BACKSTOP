@@ -21,7 +21,7 @@ import {
   createWalletClient,
   http,
   encodeAbiParameters,
-  type Hex,
+
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
