@@ -7,3 +7,4 @@ Envelope harness  8 cells  20000 draws per cell per configuration
     digit.zh        20000 matched  mode 3          93.2%  194.8s
     letter.en       20000 matched  mode b          48.6%  194.5s
     letter.fr       20000 matched  mode a          47.7%  287.4s
+    letter.es       20000 matched  mode a          45.5%  216.3s

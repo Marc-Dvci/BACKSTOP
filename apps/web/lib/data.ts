@@ -1,6 +1,8 @@
 import "server-only";
 
 import {
+  client,
+  deployment,
   isDeployed,
   readEndpoints,
   readPolicies,
@@ -11,6 +13,7 @@ import {
   type PoolRow,
   type RoundRow,
 } from "./chain";
+import { attestationRegistryAbi } from "@backstop/sdk";
 import snapshot from "./snapshot.json";
 
 /**
@@ -57,21 +60,44 @@ const snap = snapshot as unknown as Snapshot;
  * Whether the page is reading the chain or the bundled snapshot.
  *
  * The snapshot is what `make demo` writes. It stands in before the contracts hold anything, so
- * the shapes on the page are the same either way and a reader never lands on an empty table
- * while the audit cadence is still filling in.
+ * every panel on a page agrees about which source it is reading and a reader never lands on a
+ * half-filled page while the audit cadence is still starting up.
+ *
+ * The check is one cached read of `versionCount`, resolved once per request rather than set as a
+ * side effect of whichever loader happened to run first.
  */
-let liveEndpointCount: number | null = null;
+let liveCheck: Promise<boolean> | null = null;
+let liveCheckAt = 0;
 
-export function dataSource(): "chain" | "snapshot" {
-  return isDeployed() && liveEndpointCount !== 0 ? "chain" : "snapshot";
+async function hasLiveData(): Promise<boolean> {
+  if (!isDeployed()) return false;
+  const now = Date.now();
+  if (!liveCheck || now - liveCheckAt > 5000) {
+    liveCheckAt = now;
+    liveCheck = (async () => {
+      try {
+        const count = (await client().readContract({
+          address: deployment().attestationRegistry,
+          abi: attestationRegistryAbi,
+          functionName: "versionCount",
+        })) as bigint;
+        return count > 0n;
+      } catch {
+        return false;
+      }
+    })();
+  }
+  return liveCheck;
+}
+
+export async function dataSource(): Promise<"chain" | "snapshot"> {
+  return (await hasLiveData()) ? "chain" : "snapshot";
 }
 
 export async function getEndpoints(): Promise<EndpointRow[]> {
-  if (isDeployed()) {
+  if (await hasLiveData()) {
     try {
-      const rows = await readEndpoints();
-      liveEndpointCount = rows.length;
-      if (rows.length > 0) return rows;
+      return await readEndpoints();
     } catch {
       /* fall through to the snapshot */
     }
@@ -91,7 +117,7 @@ export async function getEndpoint(versionId: number): Promise<EndpointRow | unde
 }
 
 export async function getRounds(versionId: number): Promise<RoundRow[]> {
-  if (isDeployed() && liveEndpointCount !== 0) {
+  if (await hasLiveData()) {
     try {
       return await readRounds(versionId);
     } catch {
@@ -108,7 +134,7 @@ export async function getRounds(versionId: number): Promise<RoundRow[]> {
 }
 
 export async function getPolicies(): Promise<PolicyRow[]> {
-  if (isDeployed() && liveEndpointCount !== 0) {
+  if (await hasLiveData()) {
     try {
       return await readPolicies();
     } catch {
@@ -125,7 +151,7 @@ export async function getPolicies(): Promise<PolicyRow[]> {
 }
 
 export async function getPool(): Promise<PoolRow> {
-  if (isDeployed() && liveEndpointCount !== 0) {
+  if (await hasLiveData()) {
     try {
       return await readPool();
     } catch {

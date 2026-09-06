@@ -5,11 +5,12 @@ import { formatRay, expRay, usdc, short } from "@/lib/format";
 export const revalidate = 5;
 
 export default async function IndexPage() {
+  // The source is resolved first, so every panel below agrees about what it is reading.
+  const source = await dataSource();
   const [endpoints, pool, policies] = await Promise.all([getEndpoints(), getPool(), getPolicies()]);
   const settlement = endpoints.filter((e) => e.settlementEligible);
   const measurement = endpoints.filter((e) => !e.settlementEligible);
   const activePolicies = policies.filter((p) => p.status === 1);
-  const source = dataSource();
 
   return (
     <>
