@@ -4,10 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "simulate": "cre workflow simulate --target monad-testnet",
-    "deploy": "cre workflow deploy --target monad-testnet"
+    "simulate": "cre workflow simulate backstop-audit --target monad-testnet-settings",
+    "deploy": "cre workflow deploy backstop-audit --target monad-testnet-settings",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@backstop/core": "workspace:*"
+    "@backstop/core": "workspace:*",
+    "@chainlink/cre-sdk": "1.21.0",
+    "viem": "^2.22.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
   }
 }

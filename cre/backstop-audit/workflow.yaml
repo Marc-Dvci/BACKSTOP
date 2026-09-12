@@ -1,0 +1,12 @@
+# The BACKSTOP audit cadence.
+#
+# One target for now. The cadence, the statistical parameters and the commitments all come from
+# the attestation rather than from here, so config.json mirrors an onchain record and is not the
+# place any of them is decided.
+user-workflow:
+  workflow-name: "backstop-audit"
+
+monad-testnet-settings:
+  user-workflow:
+    workflow-name: "backstop-audit"
+  config-path: "./config.json"
