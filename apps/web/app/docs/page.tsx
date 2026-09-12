@@ -90,7 +90,7 @@ export default function DocsPage() {
         <div className="panel-body prose">
           <h3>Run the whole protocol locally</h3>
           <pre>
-            <code>{`git clone https://github.com/Marc-Dvci/backstop && cd backstop
+            <code>{`git clone https://github.com/Marc-Dvci/BACKSTOP && cd BACKSTOP
 pnpm install
 pnpm --filter @backstop/core build
 forge build --root contracts
@@ -107,10 +107,10 @@ make demo`}</code>
 
           <h3>Audit any OpenAI-compatible endpoint</h3>
           <pre>
-            <code>{`npm i -g @backstop/cli
+            <code>{`pnpm --filter @backstop/cli build && npm link packages/cli
 
 backstop audit \\
-  --attestation attestations/openrouter-llama-3.3-70b.json \\
+  --attestation attestations/reference.json \\
   --pool pools/v1.json \\
   --base-url https://openrouter.ai/api/v1 \\
   --model meta-llama/llama-3.3-70b-instruct \\
@@ -125,7 +125,7 @@ backstop audit \\
           <h3>Gate a deployment on it</h3>
           <pre>
             <code>{`# .github/workflows/backstop.yml
-- uses: Marc-Dvci/backstop-action@v1
+- uses: Marc-Dvci/BACKSTOP/action@main
   with:
     attestation: attestations/production.json
     pool: pools/v1.json
@@ -141,9 +141,11 @@ backstop audit \\
 
           <h3>Recompute any published verdict by hand</h3>
           <pre>
-            <code>{`backstop replay \\
-  --record rounds/v1-round-9.json \\
-  --attestation attestations/v1.json \\
+            <code>{`make round-record   # export the round that crossed on Monad testnet
+
+backstop replay \\
+  --record docs/results/round-primary-crossing.json \\
+  --attestation attestations/reference.json \\
   --pool pools/v1.json
 
 # ok    issuer seed share hashes forward to the committed chain root

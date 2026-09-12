@@ -1,0 +1,551 @@
+[
+ {
+  "type": "constructor",
+  "inputs": [
+   {
+    "name": "attestations_",
+    "type": "address",
+    "internalType": "contract AttestationRegistry"
+   },
+   {
+    "name": "audits_",
+    "type": "address",
+    "internalType": "contract AuditRegistry"
+   },
+   {
+    "name": "asset_",
+    "type": "address",
+    "internalType": "contract IERC20"
+   },
+   {
+    "name": "governance_",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "asset",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "contract IERC20"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "assignedProducer",
+  "inputs": [
+   {
+    "name": "seed",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   },
+   {
+    "name": "probeId",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "attestations",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "contract AttestationRegistry"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "audits",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "contract AuditRegistry"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "executionTimeout",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint64",
+    "internalType": "uint64"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "governance",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "markExecuted",
+  "inputs": [
+   {
+    "name": "id",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "producerCount",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "producerList",
+  "inputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "producerVoidRateBps",
+  "inputs": [
+   {
+    "name": "producer",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "producers",
+  "inputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "registered",
+    "type": "bool",
+    "internalType": "bool"
+   },
+   {
+    "name": "bond",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "published",
+    "type": "uint32",
+    "internalType": "uint32"
+   },
+   {
+    "name": "voided",
+    "type": "uint32",
+    "internalType": "uint32"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "publish",
+  "inputs": [
+   {
+    "name": "id",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   },
+   {
+    "name": "commitment",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "registerProducer",
+  "inputs": [
+   {
+    "name": "bond",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "reserve",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "contributor",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "round",
+    "type": "uint32",
+    "internalType": "uint32"
+   },
+   {
+    "name": "probeId",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "setExecutionTimeout",
+  "inputs": [
+   {
+    "name": "seconds_",
+    "type": "uint64",
+    "internalType": "uint64"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "ticket",
+  "inputs": [
+   {
+    "name": "id",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "tuple",
+    "internalType": "struct TicketRegistry.Ticket",
+    "components": [
+     {
+      "name": "state",
+      "type": "uint8",
+      "internalType": "enum TicketRegistry.TicketState"
+     },
+     {
+      "name": "producer",
+      "type": "address",
+      "internalType": "address"
+     },
+     {
+      "name": "reservedAt",
+      "type": "uint64",
+      "internalType": "uint64"
+     },
+     {
+      "name": "commitment",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     }
+    ]
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "ticketId",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "contributor",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "round",
+    "type": "uint32",
+    "internalType": "uint32"
+   },
+   {
+    "name": "probeId",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "stateMutability": "pure"
+ },
+ {
+  "type": "function",
+  "name": "voidExpired",
+  "inputs": [
+   {
+    "name": "id",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "event",
+  "name": "ProducerRegistered",
+  "inputs": [
+   {
+    "name": "producer",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "bond",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "ProducerSlashed",
+  "inputs": [
+   {
+    "name": "producer",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "amount",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   },
+   {
+    "name": "ticket",
+    "type": "bytes32",
+    "indexed": true,
+    "internalType": "bytes32"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "TicketExecuted",
+  "inputs": [
+   {
+    "name": "ticket",
+    "type": "bytes32",
+    "indexed": true,
+    "internalType": "bytes32"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "TicketPublished",
+  "inputs": [
+   {
+    "name": "ticket",
+    "type": "bytes32",
+    "indexed": true,
+    "internalType": "bytes32"
+   },
+   {
+    "name": "commitment",
+    "type": "bytes32",
+    "indexed": false,
+    "internalType": "bytes32"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "TicketReserved",
+  "inputs": [
+   {
+    "name": "ticket",
+    "type": "bytes32",
+    "indexed": true,
+    "internalType": "bytes32"
+   },
+   {
+    "name": "producer",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   },
+   {
+    "name": "round",
+    "type": "uint32",
+    "indexed": false,
+    "internalType": "uint32"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "TicketVoided",
+  "inputs": [
+   {
+    "name": "ticket",
+    "type": "bytes32",
+    "indexed": true,
+    "internalType": "bytes32"
+   },
+   {
+    "name": "producer",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "error",
+  "name": "AlreadyRegistered",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "BondTooSmall",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NotAssignedProducer",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NotGovernance",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NotRegistered",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NotTicketProducer",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "RoundNotOpen",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "TimeoutNotReached",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "TransferFailed",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "WrongState",
+  "inputs": []
+ }
+]

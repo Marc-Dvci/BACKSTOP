@@ -129,7 +129,7 @@ type Pool {
   totalShares: BigInt!
   underwriters: Int!
   "Total assets over reserved capital, in basis points"
-  collateralisationBps: Int!
+  collateralisationBps: BigInt!
   totalPremiumEarned: BigInt!
   totalPaidOut: BigInt!
   policiesActive: Int!
@@ -180,7 +180,7 @@ type ProtocolIndex {
   totalPaidOut: BigInt!
   totalPremiumEarned: BigInt!
   "Realised loss ratio: paid out over premium earned, in basis points"
-  lossRatioBps: Int!
+  lossRatioBps: BigInt!
   challengesUpheld: Int!
   challengesRejected: Int!
   "Sum of detection delays over settled policies, with the count, so the mean is exact"

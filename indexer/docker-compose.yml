@@ -1,0 +1,73 @@
+# Self-hosted BACKSTOP indexer.
+#
+# Envio HyperIndex reading the six deployed contracts on Monad testnet into Postgres, with
+# Hasura serving the result as GraphQL. No account and no API key anywhere: the Envio bounty
+# accepts a self-hosted deployment, and this is it.
+#
+#   docker compose up
+#   open http://localhost:8080/v1/graphql      admin secret: backstop
+#
+# The web app reads the same endpoint through NEXT_PUBLIC_INDEXER_URL.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: backstop
+      POSTGRES_DB: envio-dev
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 20
+
+  hasura:
+    image: hasura/graphql-engine:v2.36.1
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports: ["8080:8080"]
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:backstop@postgres:5432/envio-dev
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_ADMIN_SECRET: backstop
+      # Reading the index is the public product, so an unauthenticated caller gets the public
+      # role rather than a 401. Writes still require the admin secret.
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
+      HASURA_GRAPHQL_ENABLED_APIS: graphql,metadata
+      HASURA_GRAPHQL_CORS_DOMAIN: "*"
+      # Every amount in the schema is a uint256. Serialised as a JSON number it would lose
+      # precision in any client that parses into a double, so numerics go over the wire as
+      # strings and are parsed as BigInt on the other side.
+      HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES: "true"
+
+  indexer:
+    # Envio's sync engine is a native binary linked against OpenSSL, and it reads the system
+    # trust store rather than Node's bundled one. `node:*-slim` ships without one, so every
+    # HTTPS call to the RPC fails certificate verification and the chain height stays at 0.
+    # Installing ca-certificates is the whole fix.
+    image: node:22-slim
+    depends_on:
+      postgres: { condition: service_healthy }
+      hasura: { condition: service_started }
+    working_dir: /work
+    volumes: [".:/work"]
+    environment:
+      ENVIO_PG_HOST: postgres
+      ENVIO_PG_PORT: "5432"
+      ENVIO_PG_USER: postgres
+      ENVIO_PG_PASSWORD: backstop
+      ENVIO_PG_DATABASE: envio-dev
+      ENVIO_INDEXER_PORT: "8081"
+      TUI_OFF: "true"
+      # Envio tracks the entity tables in Hasura on startup. Left unset it looks for Hasura on
+      # localhost, which inside this container is the indexer itself.
+      ENVIO_HASURA: "true"
+      HASURA_GRAPHQL_ENDPOINT: http://hasura:8080/v1/metadata
+      HASURA_GRAPHQL_ADMIN_SECRET: backstop
+    # The Hasura image carries no shell utilities, so it cannot describe its own health.
+    # Node is already here, so the wait happens on this side.
+    command: >-
+      bash -lc "apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates
+      && npm install --no-package-lock
+      && until node -e \"fetch('http://hasura:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"; do sleep 1; done
+      && ./node_modules/.bin/envio start"

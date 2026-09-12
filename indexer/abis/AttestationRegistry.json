@@ -1,0 +1,1124 @@
+[
+ {
+  "type": "constructor",
+  "inputs": [
+   {
+    "name": "governance_",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "FIELD_CHECKPOINT_DIGEST",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint16",
+    "internalType": "uint16"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FIELD_CONTAINER_IMAGE",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint16",
+    "internalType": "uint16"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FIELD_ENGINE",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint16",
+    "internalType": "uint16"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FIELD_HARDWARE_PROFILE",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint16",
+    "internalType": "uint16"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FIELD_MIXTURE_SET",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint16",
+    "internalType": "uint16"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FIELD_QUANTIZATION_RECIPE",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint16",
+    "internalType": "uint16"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FIELD_TOKENIZER_HASH",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint16",
+    "internalType": "uint16"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "boundaryRay",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "int256",
+    "internalType": "int256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "commitments",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "tuple",
+    "internalType": "struct AttestationRegistry.Commitments",
+    "components": [
+     {
+      "name": "attestationDigest",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "referencePoolRoot",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "probePoolRoot",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "seedChainRoot",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "canonicalArithmeticHash",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "normalizationImplHash",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "batteryCommit",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     }
+    ]
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "currentVersion",
+  "inputs": [
+   {
+    "name": "",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "endpointOf",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "getVersion",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "tuple",
+    "internalType": "struct AttestationRegistry.Version",
+    "components": [
+     {
+      "name": "issuer",
+      "type": "address",
+      "internalType": "address"
+     },
+     {
+      "name": "endpointId",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "providerModelKey",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "status",
+      "type": "uint8",
+      "internalType": "enum AttestationRegistry.Status"
+     },
+     {
+      "name": "unknownFieldMask",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "seasoningRounds",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "issuedAt",
+      "type": "uint64",
+      "internalType": "uint64"
+     },
+     {
+      "name": "retiredAt",
+      "type": "uint64",
+      "internalType": "uint64"
+     },
+     {
+      "name": "stats",
+      "type": "tuple",
+      "internalType": "struct AttestationRegistry.Statistical",
+      "components": [
+       {
+        "name": "alphaRay",
+        "type": "int256",
+        "internalType": "int256"
+       },
+       {
+        "name": "lambdaRay",
+        "type": "int256",
+        "internalType": "int256"
+       },
+       {
+        "name": "warningRay",
+        "type": "int256",
+        "internalType": "int256"
+       },
+       {
+        "name": "m",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "n",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "nR",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "tMax",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "cellsPerRound",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "cellCount",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "mixtureSize",
+        "type": "uint16",
+        "internalType": "uint16"
+       }
+      ]
+     },
+     {
+      "name": "commitments",
+      "type": "tuple",
+      "internalType": "struct AttestationRegistry.Commitments",
+      "components": [
+       {
+        "name": "attestationDigest",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "referencePoolRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "probePoolRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "seedChainRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "canonicalArithmeticHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "normalizationImplHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "batteryCommit",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       }
+      ]
+     },
+     {
+      "name": "evidence",
+      "type": "tuple",
+      "internalType": "struct AttestationRegistry.Evidence",
+      "components": [
+       {
+        "name": "k",
+        "type": "uint16",
+        "internalType": "uint16"
+       },
+       {
+        "name": "n",
+        "type": "uint16",
+        "internalType": "uint16"
+       },
+       {
+        "name": "voidRateBreakerBps",
+        "type": "uint16",
+        "internalType": "uint16"
+       },
+       {
+        "name": "producerBondWei",
+        "type": "uint96",
+        "internalType": "uint96"
+       },
+       {
+        "name": "producerClass",
+        "type": "uint8",
+        "internalType": "uint8"
+       }
+      ]
+     },
+     {
+      "name": "uri",
+      "type": "string",
+      "internalType": "string"
+     },
+     {
+      "name": "retirementReason",
+      "type": "string",
+      "internalType": "string"
+     }
+    ]
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "governance",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "history",
+  "inputs": [
+   {
+    "name": "endpointId",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256[]",
+    "internalType": "uint256[]"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "isIssuer",
+  "inputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "bool",
+    "internalType": "bool"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "isWritable",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "bool",
+    "internalType": "bool"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "issue",
+  "inputs": [
+   {
+    "name": "p",
+    "type": "tuple",
+    "internalType": "struct AttestationRegistry.IssueParams",
+    "components": [
+     {
+      "name": "endpointId",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "providerModelKey",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "unknownFieldMask",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "seasoningRounds",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "stats",
+      "type": "tuple",
+      "internalType": "struct AttestationRegistry.Statistical",
+      "components": [
+       {
+        "name": "alphaRay",
+        "type": "int256",
+        "internalType": "int256"
+       },
+       {
+        "name": "lambdaRay",
+        "type": "int256",
+        "internalType": "int256"
+       },
+       {
+        "name": "warningRay",
+        "type": "int256",
+        "internalType": "int256"
+       },
+       {
+        "name": "m",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "n",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "nR",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "tMax",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "cellsPerRound",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "cellCount",
+        "type": "uint32",
+        "internalType": "uint32"
+       },
+       {
+        "name": "mixtureSize",
+        "type": "uint16",
+        "internalType": "uint16"
+       }
+      ]
+     },
+     {
+      "name": "commitments",
+      "type": "tuple",
+      "internalType": "struct AttestationRegistry.Commitments",
+      "components": [
+       {
+        "name": "attestationDigest",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "referencePoolRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "probePoolRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "seedChainRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "canonicalArithmeticHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "normalizationImplHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       },
+       {
+        "name": "batteryCommit",
+        "type": "bytes32",
+        "internalType": "bytes32"
+       }
+      ]
+     },
+     {
+      "name": "evidence",
+      "type": "tuple",
+      "internalType": "struct AttestationRegistry.Evidence",
+      "components": [
+       {
+        "name": "k",
+        "type": "uint16",
+        "internalType": "uint16"
+       },
+       {
+        "name": "n",
+        "type": "uint16",
+        "internalType": "uint16"
+       },
+       {
+        "name": "voidRateBreakerBps",
+        "type": "uint16",
+        "internalType": "uint16"
+       },
+       {
+        "name": "producerBondWei",
+        "type": "uint96",
+        "internalType": "uint96"
+       },
+       {
+        "name": "producerClass",
+        "type": "uint8",
+        "internalType": "uint8"
+       }
+      ]
+     },
+     {
+      "name": "uri",
+      "type": "string",
+      "internalType": "string"
+     }
+    ]
+   }
+  ],
+  "outputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "issuerAgentId",
+  "inputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "issuerOf",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "providerModelKeyOf",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "registerIssuer",
+  "inputs": [
+   {
+    "name": "issuer",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "agentId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "removeIssuer",
+  "inputs": [
+   {
+    "name": "issuer",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "resume",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "retire",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "reason",
+    "type": "string",
+    "internalType": "string"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "setGovernance",
+  "inputs": [
+   {
+    "name": "next",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "settlementEligible",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "bool",
+    "internalType": "bool"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "stats",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "tuple",
+    "internalType": "struct AttestationRegistry.Statistical",
+    "components": [
+     {
+      "name": "alphaRay",
+      "type": "int256",
+      "internalType": "int256"
+     },
+     {
+      "name": "lambdaRay",
+      "type": "int256",
+      "internalType": "int256"
+     },
+     {
+      "name": "warningRay",
+      "type": "int256",
+      "internalType": "int256"
+     },
+     {
+      "name": "m",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "n",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "nR",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "tMax",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "cellsPerRound",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "cellCount",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "mixtureSize",
+      "type": "uint16",
+      "internalType": "uint16"
+     }
+    ]
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "statusOf",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint8",
+    "internalType": "enum AttestationRegistry.Status"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "suspend",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "reason",
+    "type": "string",
+    "internalType": "string"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "versionCount",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "warningLogRay",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "int256",
+    "internalType": "int256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "event",
+  "name": "IssuerRegistered",
+  "inputs": [
+   {
+    "name": "issuer",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "agentId",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "IssuerRemoved",
+  "inputs": [
+   {
+    "name": "issuer",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "VersionIssued",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   },
+   {
+    "name": "endpointId",
+    "type": "bytes32",
+    "indexed": true,
+    "internalType": "bytes32"
+   },
+   {
+    "name": "issuer",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "attestationDigest",
+    "type": "bytes32",
+    "indexed": false,
+    "internalType": "bytes32"
+   },
+   {
+    "name": "settlementEligible",
+    "type": "bool",
+    "indexed": false,
+    "internalType": "bool"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "VersionResumed",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "VersionRetired",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   },
+   {
+    "name": "reason",
+    "type": "string",
+    "indexed": false,
+    "internalType": "string"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "VersionSuspended",
+  "inputs": [
+   {
+    "name": "versionId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   },
+   {
+    "name": "reason",
+    "type": "string",
+    "indexed": false,
+    "internalType": "string"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "error",
+  "name": "BadParameters",
+  "inputs": [
+   {
+    "name": "what",
+    "type": "string",
+    "internalType": "string"
+   }
+  ]
+ },
+ {
+  "type": "error",
+  "name": "Domain",
+  "inputs": [
+   {
+    "name": "what",
+    "type": "string",
+    "internalType": "string"
+   }
+  ]
+ },
+ {
+  "type": "error",
+  "name": "NotGovernance",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NotIssuer",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NotVersionIssuer",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "UnknownVersion",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "VersionNotActive",
+  "inputs": []
+ }
+]

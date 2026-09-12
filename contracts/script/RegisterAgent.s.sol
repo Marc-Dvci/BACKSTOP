@@ -41,7 +41,7 @@ contract RegisterAgent is Script {
 
         string memory tokenURI = vm.envOr(
             "AGENT_TOKEN_URI",
-            string("https://backstop.audit/agent/auditor.json")
+            string("https://backstop-smoky.vercel.app/agent.json")
         );
 
         vm.startBroadcast(pk);

@@ -1,14 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  createPublicClient,
-  createWalletClient,
-  custom,
-  http,
-  type Address,
-  type Hex,
-} from "viem";
+import { createPublicClient, http, type Address, type Hex } from "viem";
 import {
   policyRegistryAbi,
   erc20Abi,
@@ -19,6 +12,7 @@ import {
   assert as passkeyAssert,
   type Deployment,
 } from "@backstop/sdk";
+import { useWallet } from "@/components/wallet";
 
 type Stage = "idle" | "enrolling" | "quoting" | "signing" | "submitting" | "done" | "error";
 
@@ -76,14 +70,10 @@ export function BuyForm(props: BuyFormProps) {
     [],
   );
 
-  async function wallet() {
-    const eth = (globalThis as { ethereum?: unknown }).ethereum;
-    if (!eth) throw new Error("connect a wallet to continue");
-    const client = createWalletClient({ chain: monadTestnet, transport: custom(eth as never) });
-    const [account] = await client.requestAddresses();
-    if (!account) throw new Error("no account available");
-    return { client, account };
-  }
+  // The signer comes from whichever wallet layer the app mounted. With Dynamic configured
+  // that is a Dynamic wallet, so a buyer who signed in with an email pays the premium and
+  // receives the payout from an embedded wallet they never had to fund by hand.
+  const wallet = useWallet();
 
   async function enrol() {
     try {
@@ -95,7 +85,7 @@ export function BuyForm(props: BuyFormProps) {
         userName: "buyer",
         userDisplayName: "BACKSTOP buyer",
       });
-      const { client, account } = await wallet();
+      const { client, account } = await wallet.connect();
       setMessage("Enrolling the credential on chain…");
       const hash = await client.writeContract({
         address: props.deployment.policyRegistry as Address,
@@ -118,7 +108,7 @@ export function BuyForm(props: BuyFormProps) {
   async function buy() {
     try {
       if (!credential) throw new Error("enrol a passkey first");
-      const { client, account } = await wallet();
+      const { client, account } = await wallet.connect();
 
       setStage("quoting");
       setMessage("Reading the current block…");

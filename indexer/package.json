@@ -10,7 +10,7 @@
     "stop": "envio stop"
   },
   "devDependencies": {
-    "envio": "^2.31.0",
+    "envio": "^3.9.0",
     "typescript": "^5.7.3"
   }
 }

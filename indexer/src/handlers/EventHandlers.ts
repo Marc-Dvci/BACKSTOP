@@ -14,17 +14,7 @@
  * carry it in the Endpoint row so the distance is computable without a contract call.
  */
 
-import {
-  AttestationRegistry,
-  AuditRegistry,
-  CoveragePool,
-  PolicyRegistry,
-  Settlement,
-  TicketRegistry,
-  type Endpoint,
-  type ProtocolIndex,
-  type Pool,
-} from "generated";
+import { indexer, type Endpoint, type ProtocolIndex, type Pool } from "envio";
 
 const RAY = 10n ** 27n;
 const INDEX_ID = "index";
@@ -47,7 +37,7 @@ const emptyIndex = (timestamp: bigint): ProtocolIndex => ({
   totalNotionalWritten: 0n,
   totalPaidOut: 0n,
   totalPremiumEarned: 0n,
-  lossRatioBps: 0,
+  lossRatioBps: 0n,
   challengesUpheld: 0,
   challengesRejected: 0,
   detectionDelaySum: 0,
@@ -64,7 +54,7 @@ const emptyPool = (timestamp: bigint): Pool => ({
   freeCapital: 0n,
   totalShares: 0n,
   underwriters: 0,
-  collateralisationBps: 0,
+  collateralisationBps: 0n,
   totalPremiumEarned: 0n,
   totalPaidOut: 0n,
   policiesActive: 0,
@@ -87,14 +77,44 @@ function distanceBps(logRay: bigint, boundaryRay: bigint): number {
   return Number((logRay * 10000n) / boundaryRay);
 }
 
-function ratioBps(numerator: bigint, denominator: bigint): number {
-  if (denominator === 0n) return 0;
-  return Number((numerator * 10000n) / denominator);
+/**
+ * The scheduled-execution count a round committed to.
+ *
+ * `openRound(uint256 versionId, uint32 round, bytes32 issuerShare, bytes32 beaconValue,
+ * uint32 scheduled)` stores the count and emits an event without it, so the realised void
+ * rate has nothing to divide by unless the argument is recovered from the calldata. Five
+ * static words after the selector, the count last. A call that arrives any other way, through
+ * a batch or a proxy, does not match the selector and contributes zero rather than a wrong
+ * number.
+ */
+const OPEN_ROUND_SELECTOR = "0x1cd8c331";
+
+function scheduledFromCalldata(input: string | undefined): number {
+  if (!input) return 0;
+  if (input.slice(0, 10).toLowerCase() !== OPEN_ROUND_SELECTOR) return 0;
+  const body = input.slice(10);
+  if (body.length < 5 * 64) return 0;
+  return Number(BigInt(`0x${body.slice(4 * 64, 5 * 64)}`));
+}
+
+/**
+ * A ratio of two token amounts, in basis points.
+ *
+ * Both ratios computed this way are unbounded: a single crossing pays the full notional
+ * against a premium of a few basis points of it, and the pool's collateralisation is measured
+ * against reserved capital that is near zero whenever little coverage is written. Neither
+ * fits in a 32-bit integer, so the result stays a bigint and the entity fields are BigInt.
+ */
+function ratioBps(numerator: bigint, denominator: bigint): bigint {
+  if (denominator === 0n) return 0n;
+  return (numerator * 10000n) / denominator;
 }
 
 // ---------------------------------------------------------------- attestations
 
-AttestationRegistry.IssuerRegistered.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "AttestationRegistry", event: "IssuerRegistered" },
+  async ({ event, context }) => {
   const id = event.params.issuer.toLowerCase();
   const existing = await context.Issuer.get(id);
   context.Issuer.set({
@@ -108,9 +128,12 @@ AttestationRegistry.IssuerRegistered.handler(async ({ event, context }) => {
     challengesRejected: existing?.challengesRejected ?? 0,
     bondPosted: existing?.bondPosted ?? 0n,
   });
-});
+  },
+);
 
-AttestationRegistry.VersionIssued.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "AttestationRegistry", event: "VersionIssued" },
+  async ({ event, context }) => {
   const issuerId = event.params.issuer.toLowerCase();
   const issuer =
     (await context.Issuer.get(issuerId)) ??
@@ -162,9 +185,12 @@ AttestationRegistry.VersionIssued.handler(async ({ event, context }) => {
       index.endpointsSettlementEligible + (event.params.settlementEligible ? 1 : 0),
     updatedAt: BigInt(event.block.timestamp),
   });
-});
+  },
+);
 
-AttestationRegistry.VersionRetired.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "AttestationRegistry", event: "VersionRetired" },
+  async ({ event, context }) => {
   const e = await context.Endpoint.get(event.params.versionId.toString());
   if (!e) return;
   context.Endpoint.set({
@@ -175,26 +201,36 @@ AttestationRegistry.VersionRetired.handler(async ({ event, context }) => {
   });
   const issuer = await context.Issuer.get(e.issuer_id);
   if (issuer) context.Issuer.set({ ...issuer, versionsRetired: issuer.versionsRetired + 1 });
-});
+  },
+);
 
-AttestationRegistry.VersionSuspended.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "AttestationRegistry", event: "VersionSuspended" },
+  async ({ event, context }) => {
   const e = await context.Endpoint.get(event.params.versionId.toString());
   if (!e) return;
   context.Endpoint.set({ ...e, status: "suspended", retirementReason: event.params.reason });
   const issuer = await context.Issuer.get(e.issuer_id);
   if (issuer) context.Issuer.set({ ...issuer, versionsSuspended: issuer.versionsSuspended + 1 });
-});
+  },
+);
 
-AttestationRegistry.VersionResumed.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "AttestationRegistry", event: "VersionResumed" },
+  async ({ event, context }) => {
   const e = await context.Endpoint.get(event.params.versionId.toString());
   if (!e) return;
   context.Endpoint.set({ ...e, status: "active" });
-});
+  },
+);
 
 // ---------------------------------------------------------------- rounds
 
-AuditRegistry.RoundOpened.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "AuditRegistry", event: "RoundOpened" },
+  async ({ event, context }) => {
   const id = `${event.params.versionId}-${event.params.round}`;
+  const scheduled = scheduledFromCalldata(event.transaction.input);
   context.Round.set({
     id,
     endpoint_id: event.params.versionId.toString(),
@@ -206,7 +242,7 @@ AuditRegistry.RoundOpened.handler(async ({ event, context }) => {
     cumLogRay: undefined,
     warning: false,
     versionCrossed: false,
-    scheduled: 0,
+    scheduled,
     voided: 0,
     openedAt: BigInt(event.block.timestamp),
     sealedAt: undefined,
@@ -218,9 +254,17 @@ AuditRegistry.RoundOpened.handler(async ({ event, context }) => {
     ticketsPublished: 0,
     ticketsVoided: 0,
   });
-});
 
-AuditRegistry.RoundSealed.handler(async ({ event, context }) => {
+  const e = await context.Endpoint.get(event.params.versionId.toString());
+  if (e) {
+    context.Endpoint.set({ ...e, scheduledTotal: e.scheduledTotal + scheduled });
+  }
+  },
+);
+
+indexer.onEvent(
+  { contract: "AuditRegistry", event: "RoundSealed" },
+  async ({ event, context }) => {
   const id = `${event.params.versionId}-${event.params.round}`;
   const r = await context.Round.get(id);
   if (!r) return;
@@ -239,9 +283,12 @@ AuditRegistry.RoundSealed.handler(async ({ event, context }) => {
     voidedTotal,
     voidRateBps: e.scheduledTotal === 0 ? 0 : Math.floor((voidedTotal * 10000) / e.scheduledTotal),
   });
-});
+  },
+);
 
-AuditRegistry.RoundClosed.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "AuditRegistry", event: "RoundClosed" },
+  async ({ event, context }) => {
   const id = `${event.params.versionId}-${event.params.round}`;
   const r = await context.Round.get(id);
   const e = await context.Endpoint.get(event.params.versionId.toString());
@@ -284,11 +331,14 @@ AuditRegistry.RoundClosed.handler(async ({ event, context }) => {
       updatedAt: timestamp,
     });
   }
-});
+  },
+);
 
 // ---------------------------------------------------------------- policies
 
-PolicyRegistry.CredentialEnrolled.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "PolicyRegistry", event: "CredentialEnrolled" },
+  async ({ event, context }) => {
   const id = event.params.owner.toLowerCase();
   const b = await context.Buyer.get(id);
   context.Buyer.set({
@@ -299,9 +349,12 @@ PolicyRegistry.CredentialEnrolled.handler(async ({ event, context }) => {
     totalPremiumPaid: b?.totalPremiumPaid ?? 0n,
     totalPaidOut: b?.totalPaidOut ?? 0n,
   });
-});
+  },
+);
 
-PolicyRegistry.PolicyPurchased.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "PolicyRegistry", event: "PolicyPurchased" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const buyerId = event.params.buyer.toLowerCase();
   const b = await context.Buyer.get(buyerId);
@@ -314,7 +367,9 @@ PolicyRegistry.PolicyPurchased.handler(async ({ event, context }) => {
     totalPaidOut: b?.totalPaidOut ?? 0n,
   });
 
-  const [pDep, pDet, pFalse, capital, margin] = event.params.quote;
+  // The quote struct decodes as named fields, so the price stays legible in the row rather
+  // than as five anonymous positions.
+  const q = event.params.quote;
 
   context.Policy.set({
     id: event.params.policyId.toString(),
@@ -327,11 +382,11 @@ PolicyRegistry.PolicyPurchased.handler(async ({ event, context }) => {
     expiryAt: event.params.expiryAt,
     purchasedAt: timestamp,
     status: "active",
-    quotePDepartureBps: Number(pDep),
-    quotePDetectedBps: Number(pDet),
-    quoteFalseAlarmBps: Number(pFalse),
-    quoteCapitalChargeBps: Number(capital),
-    quotePoolMarginBps: Number(margin),
+    quotePDepartureBps: Number(q.pDepartureBps),
+    quotePDetectedBps: Number(q.pDetectedBps),
+    quoteFalseAlarmBps: Number(q.falseAlarmBps),
+    quoteCapitalChargeBps: Number(q.capitalChargeBps),
+    quotePoolMarginBps: Number(q.poolMarginBps),
     settledAtRound: undefined,
     paidOut: undefined,
     premiumRefunded: undefined,
@@ -358,9 +413,12 @@ PolicyRegistry.PolicyPurchased.handler(async ({ event, context }) => {
     totalNotionalWritten: index.totalNotionalWritten + event.params.notional,
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-PolicyRegistry.PolicyExpired.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "PolicyRegistry", event: "PolicyExpired" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const p = await context.Policy.get(event.params.policyId.toString());
   if (!p) return;
@@ -393,9 +451,12 @@ PolicyRegistry.PolicyExpired.handler(async ({ event, context }) => {
     lossRatioBps: ratioBps(index.totalPaidOut, premium),
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-PolicyRegistry.PolicySettled.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "PolicyRegistry", event: "PolicySettled" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const p = await context.Policy.get(event.params.policyId.toString());
   if (!p) return;
@@ -444,11 +505,14 @@ PolicyRegistry.PolicySettled.handler(async ({ event, context }) => {
     lossRatioBps: ratioBps(paid, premium),
     updatedAt: timestamp,
   });
-});
+  },
+);
 
 // ---------------------------------------------------------------- capital
 
-CoveragePool.Deposited.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "CoveragePool", event: "Deposited" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const id = event.params.underwriter.toLowerCase();
   const u = await context.Underwriter.get(id);
@@ -471,9 +535,12 @@ CoveragePool.Deposited.handler(async ({ event, context }) => {
     collateralisationBps: ratioBps(totalAssets, pool.reservedCapital),
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-CoveragePool.Withdrawn.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "CoveragePool", event: "Withdrawn" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const id = event.params.underwriter.toLowerCase();
   const u = await context.Underwriter.get(id);
@@ -495,9 +562,12 @@ CoveragePool.Withdrawn.handler(async ({ event, context }) => {
     collateralisationBps: ratioBps(totalAssets, pool.reservedCapital),
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-CoveragePool.Reserved.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "CoveragePool", event: "Reserved" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const pool = await loadPool(context, timestamp);
   const reserved = pool.reservedCapital + event.params.notional;
@@ -508,9 +578,12 @@ CoveragePool.Reserved.handler(async ({ event, context }) => {
     collateralisationBps: ratioBps(pool.totalAssets, reserved),
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-CoveragePool.Released.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "CoveragePool", event: "Released" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const pool = await loadPool(context, timestamp);
   const reserved = pool.reservedCapital - event.params.notional;
@@ -523,9 +596,12 @@ CoveragePool.Released.handler(async ({ event, context }) => {
     collateralisationBps: ratioBps(totalAssets, reserved),
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-CoveragePool.PaidOut.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "CoveragePool", event: "PaidOut" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const pool = await loadPool(context, timestamp);
   const reserved = pool.reservedCapital - event.params.notional;
@@ -538,18 +614,24 @@ CoveragePool.PaidOut.handler(async ({ event, context }) => {
     collateralisationBps: ratioBps(totalAssets, reserved),
     updatedAt: timestamp,
   });
-});
+  },
+);
 
 // ---------------------------------------------------------------- settlement
 
-Settlement.ClaimRootPublished.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "Settlement", event: "ClaimRootPublished" },
+  async ({ event, context }) => {
   const id = `${event.params.versionId}-${event.params.round}`;
   const r = await context.Round.get(id);
   if (!r) return;
   context.Round.set({ ...r, claimRoot: event.params.root, claimProposer: event.params.proposer });
-});
+  },
+);
 
-Settlement.ChallengeUpheld.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "Settlement", event: "ChallengeUpheld" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const id = `${event.params.versionId}-${event.params.round}`;
   const r = await context.Round.get(id);
@@ -567,9 +649,12 @@ Settlement.ChallengeUpheld.handler(async ({ event, context }) => {
     challengesUpheld: index.challengesUpheld + 1,
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-Settlement.ChallengeRejected.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "Settlement", event: "ChallengeRejected" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const e = await context.Endpoint.get(event.params.versionId.toString());
   if (e) {
@@ -582,16 +667,22 @@ Settlement.ChallengeRejected.handler(async ({ event, context }) => {
     challengesRejected: index.challengesRejected + 1,
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-Settlement.IssuerBonded.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "Settlement", event: "IssuerBonded" },
+  async ({ event, context }) => {
   const id = event.params.issuer.toLowerCase();
   const issuer = await context.Issuer.get(id);
   if (!issuer) return;
   context.Issuer.set({ ...issuer, bondPosted: issuer.bondPosted + event.params.amount });
-});
+  },
+);
 
-Settlement.Redeemed.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "Settlement", event: "Redeemed" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const p = await context.Policy.get(event.params.policyId.toString());
   if (!p) return;
@@ -608,9 +699,12 @@ Settlement.Redeemed.handler(async ({ event, context }) => {
     detectionDelayCount: index.detectionDelayCount + 1,
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-Settlement.BatchSettled.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "Settlement", event: "BatchSettled" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const index = await loadIndex(context, timestamp);
   const count = Number(event.params.count);
@@ -620,11 +714,14 @@ Settlement.BatchSettled.handler(async ({ event, context }) => {
     maxBatchGas: count >= index.maxBatchSize ? event.params.gasUsed : index.maxBatchGas,
     updatedAt: timestamp,
   });
-});
+  },
+);
 
 // ---------------------------------------------------------------- evidence
 
-TicketRegistry.ProducerRegistered.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TicketRegistry", event: "ProducerRegistered" },
+  async ({ event, context }) => {
   const id = event.params.producer.toLowerCase();
   context.Producer.set({
     id,
@@ -636,9 +733,12 @@ TicketRegistry.ProducerRegistered.handler(async ({ event, context }) => {
     slashed: 0n,
     voidRateBps: 0,
   });
-});
+  },
+);
 
-TicketRegistry.TicketReserved.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TicketRegistry", event: "TicketReserved" },
+  async ({ event, context }) => {
   const id = event.params.producer.toLowerCase();
   const p = await context.Producer.get(id);
   if (p) context.Producer.set({ ...p, ticketsReserved: p.ticketsReserved + 1 });
@@ -646,9 +746,12 @@ TicketRegistry.TicketReserved.handler(async ({ event, context }) => {
   const roundId = `${event.params.versionId}-${event.params.round}`;
   const r = await context.Round.get(roundId);
   if (r) context.Round.set({ ...r, ticketsReserved: r.ticketsReserved + 1 });
-});
+  },
+);
 
-TicketRegistry.TicketPublished.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TicketRegistry", event: "TicketPublished" },
+  async ({ event, context }) => {
   // The ticket id carries no version, so the producer row is the aggregate that moves here.
   const index = await loadIndex(context, BigInt(event.block.timestamp));
   context.ProtocolIndex.set({
@@ -656,9 +759,12 @@ TicketRegistry.TicketPublished.handler(async ({ event, context }) => {
     totalScheduledExecutions: index.totalScheduledExecutions + 1,
     updatedAt: BigInt(event.block.timestamp),
   });
-});
+  },
+);
 
-TicketRegistry.TicketVoided.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TicketRegistry", event: "TicketVoided" },
+  async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const id = event.params.producer.toLowerCase();
   const p = await context.Producer.get(id);
@@ -678,11 +784,15 @@ TicketRegistry.TicketVoided.handler(async ({ event, context }) => {
     totalVoidedExecutions: index.totalVoidedExecutions + 1,
     updatedAt: timestamp,
   });
-});
+  },
+);
 
-TicketRegistry.ProducerSlashed.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TicketRegistry", event: "ProducerSlashed" },
+  async ({ event, context }) => {
   const id = event.params.producer.toLowerCase();
   const p = await context.Producer.get(id);
   if (!p) return;
   context.Producer.set({ ...p, slashed: p.slashed + event.params.amount, bond: p.bond - event.params.amount });
-});
+  },
+);

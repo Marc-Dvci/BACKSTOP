@@ -17,6 +17,10 @@ interface IIdentityRegistry {
     function register(string calldata tokenURI) external returns (uint256 agentId);
     function ownerOf(uint256 agentId) external view returns (address);
     function balanceOf(address owner) external view returns (uint256);
+    function tokenURI(uint256 agentId) external view returns (string memory);
+    /// The registry names this `setAgentURI`, not the ERC-721 `setTokenURI`. Only the owner of
+    /// the agentId may call it, which is what makes the card correctable after registration.
+    function setAgentURI(uint256 agentId, string calldata tokenURI) external;
 }
 
 interface IReputationRegistry {

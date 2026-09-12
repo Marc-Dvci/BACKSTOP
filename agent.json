@@ -2,8 +2,8 @@
   "type": "https://eips.ethereum.org/EIPS/eip-8004#AgentCard",
   "name": "BACKSTOP auditor",
   "description": "Continuously tests whether a hosted inference endpoint remains statistically consistent with the behavioural envelope its attestation committed to, and publishes each verdict with the material needed to recompute it.",
-  "url": "https://github.com/Marc-Dvci/backstop",
-  "image": "https://raw.githubusercontent.com/Marc-Dvci/backstop/main/assets/logo.png",
+  "url": "https://github.com/Marc-Dvci/BACKSTOP",
+  "image": "https://backstop-smoky.vercel.app/logo.png",
   "capabilities": [
     "endpoint-conformance-audit",
     "anytime-valid-sequential-testing",
@@ -13,6 +13,7 @@
   "registrations": [
     {
       "agentRegistry": "eip155:10143:0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "agentId": 1824,
       "role": "auditor"
     }
   ],

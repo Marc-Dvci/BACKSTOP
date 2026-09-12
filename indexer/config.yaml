@@ -5,75 +5,114 @@
 # the correlation structure the underwriting side needs. Every entity in schema.graphql past
 # the identifiers is derived or aggregated rather than a mirror of an event.
 #
-# Addresses are filled in by scripts/sync-deployment.mjs after the contracts are deployed.
+# Event signatures resolve from the compiled ABIs in `abis/`, so a contract change that moves a
+# parameter breaks codegen rather than silently indexing the wrong field.
+#
+# Addresses are written by scripts/sync-deployment.mjs after deployment.
 name: backstop
 description: Capital-backed verification for hosted AI inference
-preload_handlers: true
 
-networks:
+# `openRound` records the number of scheduled executions the round commits to, and the event
+# it emits does not carry it. The realised void rate is measured against that number, so the
+# calldata is selected and the argument decoded in the handler.
+field_selection:
+  transaction_fields:
+    - input
+
+contracts:
+  - name: AttestationRegistry
+    abi_file_path: abis/AttestationRegistry.json
+    events:
+      - event: VersionIssued
+      - event: VersionRetired
+      - event: VersionSuspended
+      - event: VersionResumed
+      - event: IssuerRegistered
+  - name: AuditRegistry
+    abi_file_path: abis/AuditRegistry.json
+    events:
+      - event: RoundOpened
+      - event: RoundSealed
+      - event: RoundClosed
+  - name: PolicyRegistry
+    abi_file_path: abis/PolicyRegistry.json
+    events:
+      - event: PolicyPurchased
+      - event: PolicyExpired
+      - event: PolicySettled
+      - event: CredentialEnrolled
+  - name: CoveragePool
+    abi_file_path: abis/CoveragePool.json
+    events:
+      - event: Deposited
+      - event: Withdrawn
+      - event: Reserved
+      - event: Released
+      - event: PaidOut
+  - name: Settlement
+    abi_file_path: abis/Settlement.json
+    events:
+      - event: ClaimRootPublished
+      - event: ChallengeUpheld
+      - event: ChallengeRejected
+      - event: Redeemed
+      - event: BatchSettled
+      - event: IssuerBonded
+  - name: TicketRegistry
+    abi_file_path: abis/TicketRegistry.json
+    events:
+      - event: ProducerRegistered
+      - event: ProducerSlashed
+      - event: TicketReserved
+      - event: TicketPublished
+      - event: TicketVoided
+
+chains:
   - id: 10143 # Monad testnet
-    start_block: 0
+    # The block the six contracts were deployed in. Starting at genesis would scan 60 million
+    # blocks to reach the first event that matters.
+    start_block: 60253947
+    # RPC as the data source, so the indexer runs with no account anywhere. HyperSync is
+    # faster and is a one-line swap once an Envio API token is set.
+    #
+    # Monad's own public endpoint caps eth_getLogs at a 100-block range, which turns a 32,000
+    # block backfill into 320 round trips per contract and trips its rate limit long before
+    # it finishes. Two public endpoints serve a 1000-block range, so they lead and Monad's own
+    # endpoint sits behind them as the last fallback. `for: sync` is required because
+    # HyperSync exists for this chain and an RPC is otherwise treated as a fallback only.
+    rpc:
+      - url: https://monad-testnet.drpc.org
+        for: sync
+        initial_block_interval: 999
+        interval_ceiling: 999
+        acceleration_additive: 0
+        backoff_millis: 1000
+      - url: https://10143.rpc.thirdweb.com
+        for: fallback
+        initial_block_interval: 999
+        interval_ceiling: 999
+        acceleration_additive: 0
+      - url: https://testnet-rpc.monad.xyz
+        for: fallback
+        initial_block_interval: 100
+        interval_ceiling: 100
+        acceleration_additive: 0
     contracts:
       - name: AttestationRegistry
         address:
-          - "0x0000000000000000000000000000000000000000"
-        handler: src/EventHandlers.ts
-        events:
-          - event: VersionIssued(uint256 indexed versionId, bytes32 indexed endpointId, address indexed issuer, bytes32 attestationDigest, bool settlementEligible)
-          - event: VersionRetired(uint256 indexed versionId, string reason)
-          - event: VersionSuspended(uint256 indexed versionId, string reason)
-          - event: VersionResumed(uint256 indexed versionId)
-          - event: IssuerRegistered(address indexed issuer, uint256 agentId)
-
+          - 0x72193621705c660ffca7a8AFd3338EccB31571e8
       - name: AuditRegistry
         address:
-          - "0x0000000000000000000000000000000000000000"
-        handler: src/EventHandlers.ts
-        events:
-          - event: RoundOpened(uint256 indexed versionId, uint32 indexed round, bytes32 seed)
-          - event: RoundSealed(uint256 indexed versionId, uint32 indexed round, bytes32 transcriptRoot, uint32 voided)
-          - event: RoundClosed(uint256 indexed versionId, uint32 indexed round, int256 eRoundRay, int256 cumLogRay, bool warning, bool versionCrossed)
-
+          - 0xcacFf7F418F92C160f270f6B4Db3B00fD739872F
       - name: PolicyRegistry
         address:
-          - "0x0000000000000000000000000000000000000000"
-        handler: src/EventHandlers.ts
-        events:
-          - event: PolicyPurchased(uint256 indexed policyId, address indexed buyer, uint256 indexed versionId, uint256 notional, uint256 premium, uint32 startRound, uint64 expiryAt, (uint64,uint64,uint64,uint64,uint64) quote)
-          - event: PolicyExpired(uint256 indexed policyId, uint256 premiumEarned)
-          - event: PolicySettled(uint256 indexed policyId, address indexed to, uint256 notional, uint256 premiumRefunded)
-          - event: CredentialEnrolled(address indexed owner, bytes32 indexed credentialId, uint256 x, uint256 y)
-
+          - 0x8d6e370b95A783B983e40468413227ad94b03902
       - name: CoveragePool
         address:
-          - "0x0000000000000000000000000000000000000000"
-        handler: src/EventHandlers.ts
-        events:
-          - event: Deposited(address indexed underwriter, uint256 assets, uint256 shares)
-          - event: Withdrawn(address indexed underwriter, uint256 assets, uint256 shares)
-          - event: Reserved(uint256 indexed policyId, uint256 notional)
-          - event: Released(uint256 indexed policyId, uint256 notional, uint256 premiumEarned)
-          - event: PaidOut(uint256 indexed policyId, address indexed to, uint256 notional)
-
+          - 0xA29548deCABE4c5A07461D00B7ED26dfFb10BA4e
       - name: Settlement
         address:
-          - "0x0000000000000000000000000000000000000000"
-        handler: src/EventHandlers.ts
-        events:
-          - event: ClaimRootPublished(uint256 indexed versionId, uint32 indexed round, bytes32 root, address proposer)
-          - event: ChallengeUpheld(uint256 indexed versionId, uint32 indexed round, address indexed challenger, string quantity, uint256 award)
-          - event: ChallengeRejected(uint256 indexed versionId, uint32 indexed round, address indexed challenger)
-          - event: Redeemed(uint256 indexed policyId, address indexed to, uint256 notional, uint32 round)
-          - event: BatchSettled(uint256 indexed versionId, uint32 indexed round, uint256 count, uint256 gasUsed)
-          - event: IssuerBonded(uint256 indexed versionId, address indexed issuer, uint256 amount)
-
+          - 0x9d344c625D7D62FA43ebc97528213B666893082B
       - name: TicketRegistry
         address:
-          - "0x0000000000000000000000000000000000000000"
-        handler: src/EventHandlers.ts
-        events:
-          - event: ProducerRegistered(address indexed producer, uint256 bond)
-          - event: ProducerSlashed(address indexed producer, uint256 amount, bytes32 indexed ticket)
-          - event: TicketReserved(bytes32 indexed ticket, address indexed producer, uint256 versionId, uint32 round)
-          - event: TicketPublished(bytes32 indexed ticket, bytes32 commitment)
-          - event: TicketVoided(bytes32 indexed ticket, address indexed producer)
+          - 0xa91Ee747C648c8a6f9418FaB1C21b7f00DC441C3
