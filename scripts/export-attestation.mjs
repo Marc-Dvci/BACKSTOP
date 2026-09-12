@@ -191,7 +191,7 @@ const attestation = {
   schema: "backstop/attestation@1",
   version: 1,
   endpointId: keccakString(`endpoint/local/${MODEL}`),
-  issuer: { name: "BACKSTOP reference issuer", agentId: "pending" },
+  issuer: { name: "BACKSTOP reference issuer", agentId: "1824" },
 
   endpoint: {
     url: { value: BASE_URL, provenance: "issuer_observed" },

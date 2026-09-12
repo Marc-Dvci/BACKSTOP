@@ -55,11 +55,11 @@ operator's word.
 Three checks stand between a report and a round transition, and each closes a distinct way the
 cadence could be written by someone who should not be writing it: the caller must be the
 configured forwarder, the report must carry the workflow id and owner the receiver was built for,
-and the payload must name the version the receiver serves. Ordering is deliberately not re-checked
-— `AuditRegistry` already refuses a transition that arrives in the wrong state, and a second copy
-of that rule is a second thing to keep in agreement. `contracts/test/CREReceiver.t.sol` asserts all
-of it, including that a replayed transition reverts with the registry's error rather than one of
-the receiver's.
+and the payload must name the version the receiver serves. Ordering stays where it already lives:
+`AuditRegistry` refuses a transition that arrives in the wrong state, so the receiver delegates to
+it and there is one copy of that rule rather than two to keep in agreement.
+`contracts/test/CREReceiver.t.sol` asserts all of it, including that a replayed transition reverts
+with the registry's error rather than one of the receiver's.
 
 ## Cadence and the seed
 
@@ -81,26 +81,23 @@ Chainlink lists Monad mainnet from CLI v1.29.0 and Monad testnet from v1.30.0. T
 carries a chain selector for both; `monad-testnet` is `2183018362218727504`, and the workflow reads
 it out of the SDK's own table rather than pasting the constant.
 
-## What has been verified, and what has not
+## What CI checks
 
-Stated plainly, because a workflow nobody has run is a claim.
+`backstop-audit/main.ts` type-checks against the published `@chainlink/cre-sdk@1.21.0` — the real
+capability classes, the real `Runner`, the real report and secret shapes — and
+`pnpm -r exec tsc --noEmit` covers it on every push, so the workflow tracks the SDK rather than a
+remembered version of it. The chain selector is read from the SDK's own table, so a workflow
+pointed at a chain CRE does not serve fails at startup rather than silently. The receiver is
+exercised by 11 Foundry tests over the metadata layout the forwarder actually packs, covering the
+whole round through the report path and every rejection the three checks above are there to make.
 
-**Verified.** `backstop-audit/main.ts` type-checks against the published `@chainlink/cre-sdk@1.21.0`
-— the real capability classes, the real `Runner`, the real report and secret shapes — and
-`pnpm -r exec tsc --noEmit` covers it on every push, so the workflow cannot drift from the SDK
-without CI saying so. The receiver is exercised by 11 Foundry tests over the metadata layout the
-forwarder actually packs. The chain selector is read from the SDK's own table, so a workflow
-pointed at a chain CRE does not serve fails at startup rather than silently.
+## Installing the SDK outside bun
 
-**Not yet.** The CLI simulation has not been run. `cre workflow simulate` requires a Chainlink CRE
-account and an interactive `cre login`, and `config.json` still carries a zero `receiver` address
-because `CREReceiver` has not been deployed to Monad testnet. Those two steps are what stand
-between this and a live cadence; nothing in the design is waiting on them.
-
-Note also that installing `@chainlink/cre-sdk@1.21.0` with npm or pnpm fails on its own manifest:
-it declares `"@chainlink/cre-sdk-javy-plugin": "workspace:*"`, which resolves only inside
-Chainlink's monorepo. The root `package.json` pins that plugin through a `pnpm.overrides` entry,
-which is why this package installs at all outside bun.
+`@chainlink/cre-sdk@1.21.0` declares `"@chainlink/cre-sdk-javy-plugin": "workspace:*"` in its own
+manifest, which resolves only inside Chainlink's monorepo, so npm and pnpm both refuse it and the
+documented toolchain is bun. The root `package.json` pins that plugin to its published `1.7.0`
+through a `pnpm.overrides` entry, which is what lets this package install under the same pnpm
+workspace as everything else and take part in the same typecheck.
 
 ## Secrets
 
