@@ -205,6 +205,7 @@ Monad allows 30,000,000 gas per transaction inside a 150,000,000 block.
 | `DifferentialTest` | 9 |
 | `InvariantsTest` | 7 invariants, 128 runs × 8,192 calls each |
 | `WebAuthnTest` | 6 |
+| `CREReceiverTest` | 11 |
 | `@backstop/core` | 18 |
 
-53 contract tests and 18 engine tests, all passing.
+64 contract tests and 18 engine tests, all passing.

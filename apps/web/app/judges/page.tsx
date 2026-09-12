@@ -98,7 +98,8 @@ export default async function JudgesPage() {
           <pre>
             <code>{`git clone https://github.com/Marc-Dvci/BACKSTOP && cd BACKSTOP
 make install
-make test        # 53 contract tests, 7 invariants, the differential suite
+make test        # 64 contract tests, 7 invariants, the differential suite
+make ci-audit    # the CLI catching a substitution, no chain and no key needed
 make demo        # the whole protocol end to end on a local chain
 make gate-zero   # the lifetime Type-I bound, measured
 make replay      # recompute a verdict published on this testnet, from its record
@@ -110,6 +111,13 @@ make indexer     # the self-hosted index over this deployment, GraphQL on :8080`
             the one the AuditRegistry holds, and then checks the seed chain, the cell selection
             and every Merkle proof in the revealed calibration slice against the pool root fixed
             at issuance.
+          </p>
+          <p>
+            <code>make ci-audit</code> is the one that needs nothing at all: no chain, no API key
+            and no GPU. It serves the probe battery from the laws measured off a real open-weight
+            model, runs the published CLI against it at the attested precision and at the
+            substituted one, and asserts both verdicts. The substitution crosses at round 2, which
+            is where the live llama.cpp run crossed too.
           </p>
           <p style={{ marginBottom: 0 }}>
             <code>make demo</code> stands up a chain with Monad&rsquo;s P256 precompile at{" "}
