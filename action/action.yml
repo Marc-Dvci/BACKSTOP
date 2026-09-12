@@ -107,6 +107,10 @@ runs:
         BACKSTOP_CLI: ${{ steps.build.outputs.root }}/packages/cli/dist/index.js
         REPORT: ${{ inputs.report }}
       run: |
+        # GitHub invokes a composite run step with `bash -e`, and the CLI's exit code is the
+        # verdict rather than a failure, so `-e` has to go before the audit runs. Every exit
+        # below is then explicit.
+        set +e
         set -uo pipefail
 
         args=(audit
@@ -183,7 +187,7 @@ runs:
 
     - name: Upload the verdict
       if: always() && inputs.upload-report == 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: backstop-verdict
         path: ${{ inputs.report }}
