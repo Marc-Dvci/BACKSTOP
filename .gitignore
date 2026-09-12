@@ -13,9 +13,16 @@ contracts/lib/
 *.log
 .DS_Store
 generated/
+# Envio codegen output. `.env*` above already catches this by accident; say it on purpose.
+indexer/.envio/
 
 # Model weights. Fetched by bench/fetch-models.sh; several GB.
 bench/models/
+
+# The laws the harness measured are the behaviour the demo and the reference endpoint serve,
+# so they travel with the repository. The `out/` rule above would otherwise swallow them.
+!bench/out/
+!bench/out/laws.json
 
 .vercel
 .env*
@@ -23,3 +30,9 @@ bench/models/
 # Vercel
 .vercel
 .env.local
+
+# TypeScript incremental build state
+*.tsbuildinfo
+
+# The CI audit writes its verdicts here on every run; they are regenerated, not published.
+docs/results/ci/
