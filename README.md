@@ -191,9 +191,13 @@ separation is the reason the ceremony exists. `node scripts/check-p256.mjs`
 
 ### Tests
 
-53 contract tests pass, including 7 invariants over 128 runs × 8,192 calls each, 9 WebAuthn
-ceremony fixtures with genuine secp256r1 signatures, and 9 differential suites against the
-TypeScript engine.
+64 contract tests pass, including 7 invariants over 128 runs × 8,192 calls each, 9 WebAuthn
+ceremony fixtures with genuine secp256r1 signatures, 9 differential suites against the TypeScript
+engine, and 11 over the CRE report path.
+
+The audit itself is exercised on every push, against an endpoint the repository stands up itself,
+on both the attested precision and the substitution. Both directions are asserted, because a
+detector that fires on everything is as useless as one that fires on nothing. `make ci-audit`
 
 ---
 
@@ -370,11 +374,12 @@ packages/core         BSA-1 arithmetic, the verdict path, the probe battery, rep
 packages/sdk          BackstopClient, the quote function, browser passkeys, the PRF claim vault
 packages/cli          backstop audit, backstop replay, backstop index, backstop quote
 packages/producer     the evidence producer: reserve, execute, publish
-contracts             the six contracts, BSA-1, Verdict, WebAuthnP256, and 53 tests
+contracts             the six contracts plus the CRE receiver, BSA-1, Verdict, WebAuthnP256, 64 tests
 apps/web              the live index, endpoint pages, the buy flow, the method pages, the vault
-indexer               Envio HyperIndex: derived entities, not an event mirror
+indexer               Envio HyperIndex, self-hosted: derived entities, not an event mirror
 cre                   the audit cadence as a Chainlink Runtime Environment workflow
 bench                 the envelope harness over a real open-weight model, and its analysis
+scripts               the demo, the reference endpoint, the round exporter, the CI audit
 action                the GitHub Action that fails a build on a departed endpoint
 docs/results          every measured number, as JSON and as the raw run output
 ```
@@ -382,22 +387,93 @@ docs/results          every measured number, as JSON and as the raw run output
 ### Five minutes from clone to a verdict
 
 ```bash
-git clone https://github.com/Marc-Dvci/backstop && cd backstop
+git clone https://github.com/Marc-Dvci/BACKSTOP && cd BACKSTOP
 make install
 make build
 make demo          # the whole protocol, end to end
-make test          # 53 contract tests, the invariants, the differential suite
+make test          # 64 contract tests, the invariants, the differential suite
+make ci-audit      # the CLI against a local endpoint, attested and substituted
 make gate-zero     # the lifetime Type-I bound
 make harness       # measure a real model across three quantisations
+make replay        # recompute a verdict published on testnet, from its record alone
+make indexer       # the self-hosted index over the testnet deployment, GraphQL on :8080
 ```
+
+### Recompute a published verdict yourself
+
+`make replay` exports the round that crossed on Monad testnet and then recomputes it. The
+exporter refuses to write unless the E(t) it recomputes equals the one the AuditRegistry holds,
+so the record it produces is the round the issuer actually closed, not a reconstruction of one.
+The CLI then checks it end to end:
+
+```
+BACKSTOP replay  round 8
+
+  ok    issuer seed share hashes forward to the committed chain root
+  ok    round seed is the combination of both shares
+  ok    cell selection derives from the seed
+  ok    fingerprint partitions prove against the committed pool root
+  ok    calibration slice proves against the committed pool root
+  ok    published E(t) matches the recomputation
+
+  recomputed E(t) = 3.60190197
+  published  E(t) = 3.60190197
+```
+
+The record carries 24 fingerprint partitions and 2,376 calibration blocks, each with a Merkle
+proof against the pool root fixed at issuance. Change one count in one block and the calibration
+check fails and names the block.
+
+### Catch a substitution in one minute, with no GPU and no API key
+
+The audit needs an endpoint, and until now that meant a local llama.cpp with several gigabytes of
+weights or a funded key on a public router. The reference endpoint removes both. It serves the
+probe battery from the laws the harness measured off Qwen3-1.7B, so the CLI reaches a verdict
+against the same behaviour that produced the numbers above.
+
+```bash
+make build
+node scripts/reference-endpoint.mjs --serve bf16 &      # the attested precision
+backstop audit --attestation attestations/reference.json --pool pools/v1.json                --base-url http://127.0.0.1:8080/v1 --model local --rounds 6
+```
+
+```
+  round  0  E(t)     0.7292  log M    -0.3158  ................................ -10.5%
+  round  5  E(t)     0.6440  log M    -1.1839  ................................ -39.5%
+
+  CONSISTENT with the attested envelope after 6 round(s).                        exit 0
+```
+
+Restart it with `--serve q4km` and nothing else changes:
+
+```
+  round  0  E(t)     3.8117  log M     1.3380  ##############.................. 44.7%
+  round  1  E(t)     3.6072  log M     2.6210  ############################.... 87.5%
+  round  2  E(t)     4.0189  log M     4.0120  ################################ 133.9%
+
+  CROSSED at round 2. The evidence passed the boundary fixed before the audit began.  exit 1
+```
+
+Round 2 is where the live llama.cpp run crossed as well. Nothing about the verdict path is
+mocked: the requests carry the sampling contract the attestation pinned, the responses go through
+the same normalization, and the engine is the one that settles onchain. What the endpoint replaces
+is the model, by sampling from the categorical law per cell that the battery reduces every
+response to anyway.
+
+It is also deterministic. Each cell's draw stream is fixed by `--seed`, so `make ci-audit` asserts
+both verdicts on every push and a red build means the verdict path changed rather than that the
+dice came up differently.
+
+Demonstrating a substitution at all requires an endpoint nobody else owns. Pointing it at a named
+commercial provider would be an accusation; pointing it here is a measurement.
 
 ### Audit any OpenAI-compatible endpoint
 
 ```bash
-npm i -g @backstop/cli
+pnpm --filter @backstop/cli build && npm link packages/cli
 
 backstop audit \
-  --attestation attestations/openrouter-llama-3.3-70b.json \
+  --attestation attestations/reference.json \
   --pool pools/v1.json \
   --base-url https://openrouter.ai/api/v1 \
   --model meta-llama/llama-3.3-70b-instruct \
@@ -407,6 +483,17 @@ backstop audit \
 # exit 0  consistent with the attested envelope
 # exit 1  the evidence crossed the precommitted boundary
 # exit 2  the run could not complete
+```
+
+The transport is any OpenAI-compatible endpoint. The envelope is not: an attestation names the
+configuration mixture it was measured against, so pointing the committed reference pool at a
+different model measures the gap between two models rather than the endpoint's conformance.
+`attestations/reference.json` covers qwen3-1.7b at the precisions in `bench/out/laws.json`.
+Issuing one for another endpoint means measuring its declared configuration first:
+
+```bash
+make harness                              # measure the declared configurations
+node scripts/export-attestation.mjs       # commit the pool and issue the attestation
 ```
 
 ### Ten lines to coverage
@@ -495,9 +582,9 @@ and financial consequence in one stack.
 | | How it is used |
 |---|---|
 | **Monad** | P256 precompile for the WebAuthn ceremony, 30M-gas transactions for onchain adjudication and batch settlement, ERC-8004 for issuer and auditor reputation |
-| **Chainlink CRE** | The audit cadence as a workflow: a chain, an external inference API, a randomness beacon and the e-process engine, in the order the statistics require. `cre/` |
-| **Envio** | HyperIndex over every contract, with derived entities rather than an event mirror: distance to boundary, realised detection delay, void rate, collateralisation, loss ratio. `indexer/` |
-| **Dynamic** | Embedded wallets so a buyer reaches coverage without a seed phrase, a server wallet for the unattended audit cadence, and an agent wallet with delegated evidence submission and claim redemption. `apps/web/components/Providers.tsx` |
+| **Chainlink CRE** | The audit cadence as a workflow: Monad reads and writes, the drand beacon, the evidence producer's published bundle, and the e-process engine running unmodified inside the QuickJS sandbox, in the order the statistics require. The three round transitions arrive onchain as a signed report through `CREReceiver`, which is the version's issuer. It type-checks against `@chainlink/cre-sdk@1.21.0` in CI; the CLI simulation has not been run. `cre/` |
+| **Envio** | HyperIndex over all six contracts, self-hosted with no account: `cd indexer && docker compose up` backfills from the deployment block and serves GraphQL on :8080. Derived entities rather than an event mirror: distance to boundary, realised detection delay, void rate against the declared breaker, collateralisation, loss ratio. The app consumes it at [/protocol](https://backstop-smoky.vercel.app/protocol). `indexer/` |
+| **Dynamic** | The signer for every transaction the product sends, not a login button beside one. `useWallet()` resolves to a Dynamic wallet, so a buyer who signed in with an email pays the premium and receives the payout from an embedded wallet that injects nothing into the page. An external wallet takes the same path. `apps/web/components/Providers.tsx`, `DynamicWallet.tsx`, `wallet.tsx` |
 | **Mera** | One passkey, three namespaces, none of them a wallet: an encrypted claim vault recoverable on any device with nothing stored, a deterministic per-policy blinding factor for reproducible commitments, and a transcript-sealing key for evidence producers. `packages/sdk/src/prf.ts`, [live](https://backstop-smoky.vercel.app/vault) |
 
 ---
