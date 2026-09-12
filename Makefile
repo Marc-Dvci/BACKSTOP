@@ -24,7 +24,7 @@ test: ## Run every test: engine, contracts, invariants, differential
 demo: build ## One command: the whole protocol, end to end, on a local chain
 	node scripts/demo.mjs --rounds 18 --switch-at 6 --draws 96
 
-endpoint: ## An OpenAI-compatible endpoint serving the measured laws. --serve bf16|q8_0|q4km
+endpoint: ## An OpenAI-compatible endpoint serving the measured laws. SERVE=bf16, q8_0 or q4km
 	node scripts/reference-endpoint.mjs --serve $(or $(SERVE),bf16)
 
 ci-audit: build ## The CLI against that endpoint, attested and substituted, both verdicts asserted
