@@ -6,17 +6,19 @@ branding:
 
 inputs:
   attestation:
-    description: "Path to the attestation configuration."
+    description: "Path to the attestation configuration, relative to your workspace."
     required: true
   pool:
-    description: "Path to the committed reference pool."
+    description: "Path to the committed reference pool, relative to your workspace."
     required: true
   base-url:
-    description: "OpenAI-compatible base URL of the endpoint under audit."
-    required: true
+    description: "OpenAI-compatible base URL of the endpoint under audit. Defaults to the URL the attestation names."
+    required: false
+    default: ""
   model:
-    description: "Model slug to request."
-    required: true
+    description: "Model slug to request. Defaults to the slug the attestation names."
+    required: false
+    default: ""
   api-key:
     description: "Credential for the endpoint. Use a probe-scoped key with a spend cap."
     required: false
@@ -32,6 +34,17 @@ inputs:
     description: "Where to write the machine-readable verdict."
     required: false
     default: "backstop-verdict.json"
+  fail-on-cross:
+    description: >-
+      Fail the job when the evidence crosses the precommitted boundary. Set to false to record
+      the verdict without failing, which is how a team adopts the audit before trusting it to
+      gate a release.
+    required: false
+    default: "true"
+  upload-report:
+    description: "Upload the verdict as a build artifact."
+    required: false
+    default: "true"
 
 outputs:
   crossed:
@@ -40,40 +53,138 @@ outputs:
   log-m:
     description: "log M at the last round, RAY scale"
     value: ${{ steps.audit.outputs.log-m }}
+  crossed-at:
+    description: "the round the boundary was crossed at, empty when it was not"
+    value: ${{ steps.audit.outputs.crossed-at }}
+  report:
+    description: "path to the machine-readable verdict"
+    value: ${{ steps.audit.outputs.report }}
 
 runs:
   using: composite
   steps:
-    - name: Install the CLI
+    # The CLI is built from the action's own checkout, never from the caller's workspace.
+    # GitHub places the whole repository behind GITHUB_ACTION_PATH, so `..` is the BACKSTOP
+    # root whether this action was referenced as `owner/BACKSTOP/action@ref` or as `./action`
+    # from inside the repository itself. Building from the caller's tree would install their
+    # dependencies against our lockfile, which is why this step is not simply `pnpm install`.
+    - name: Build the CLI
+      id: build
       shell: bash
-      run: npm i -g @backstop/cli
+      env:
+        BACKSTOP_ROOT: ${{ github.action_path }}/..
+      run: |
+        set -euo pipefail
+        root="$(cd "$BACKSTOP_ROOT" && pwd)"
+        echo "root=$root" >> "$GITHUB_OUTPUT"
 
+        if [ -f "$root/packages/cli/dist/index.js" ]; then
+          echo "the CLI is already built"
+        else
+          corepack enable
+          corepack prepare "$(node -p "require('$root/package.json').packageManager")" --activate
+          # Only the CLI and what it depends on. The web app and the contracts have no part in
+          # an audit, and a CI job should not install a Next.js toolchain to send HTTP requests.
+          pnpm --dir "$root" install --frozen-lockfile --filter "@backstop/cli..."
+          pnpm --dir "$root" --filter @backstop/core build
+          pnpm --dir "$root" --filter @backstop/sdk build
+          pnpm --dir "$root" --filter @backstop/cli build
+        fi
+
+        test -f "$root/packages/cli/dist/index.js" || {
+          echo "::error::the CLI did not build at $root/packages/cli/dist/index.js"
+          exit 2
+        }
+
+    # Run from the caller's workspace, so `attestation` and `pool` resolve against their
+    # repository rather than against ours.
     - name: Audit
       id: audit
       shell: bash
+      working-directory: ${{ github.workspace }}
       env:
         BACKSTOP_API_KEY: ${{ inputs.api-key }}
+        BACKSTOP_CLI: ${{ steps.build.outputs.root }}/packages/cli/dist/index.js
+        REPORT: ${{ inputs.report }}
       run: |
-        set +e
-        backstop audit \
-          --attestation "${{ inputs.attestation }}" \
-          --pool "${{ inputs.pool }}" \
-          --base-url "${{ inputs.base-url }}" \
-          --model "${{ inputs.model }}" \
-          --rounds "${{ inputs.rounds }}" \
-          --draws "${{ inputs.draws }}" \
-          --json "${{ inputs.report }}"
+        set -uo pipefail
+
+        args=(audit
+          --attestation "${{ inputs.attestation }}"
+          --pool "${{ inputs.pool }}"
+          --rounds "${{ inputs.rounds }}"
+          --draws "${{ inputs.draws }}"
+          --json "$REPORT")
+        # An empty base-url or model means "use what the attestation names", which is the
+        # common case: the attestation already pins the endpoint it was measured against.
+        [ -n "${{ inputs.base-url }}" ] && args+=(--base-url "${{ inputs.base-url }}")
+        [ -n "${{ inputs.model }}" ] && args+=(--model "${{ inputs.model }}")
+
+        node "$BACKSTOP_CLI" "${args[@]}"
         code=$?
-        set -e
-        if [ -f "${{ inputs.report }}" ]; then
-          echo "crossed=$(jq -r .crossed "${{ inputs.report }}")" >> "$GITHUB_OUTPUT"
-          echo "log-m=$(jq -r .logMRay "${{ inputs.report }}")" >> "$GITHUB_OUTPUT"
+
+        echo "report=$REPORT" >> "$GITHUB_OUTPUT"
+        if [ -f "$REPORT" ]; then
+          read -r crossed logm at <<<"$(node -e '
+            const r = require("node:fs").readFileSync(process.env.REPORT, "utf8");
+            const v = JSON.parse(r);
+            console.log(v.crossed, v.logMRay, v.crossedAt ?? "-");
+          ')"
+          [ "$at" = "-" ] && at=""
+          echo "crossed=$crossed" >> "$GITHUB_OUTPUT"
+          echo "log-m=$logm" >> "$GITHUB_OUTPUT"
+          echo "crossed-at=$at" >> "$GITHUB_OUTPUT"
+        else
+          echo "crossed=" >> "$GITHUB_OUTPUT"
+          echo "log-m=" >> "$GITHUB_OUTPUT"
+          echo "crossed-at=" >> "$GITHUB_OUTPUT"
+          at=""
         fi
-        exit $code
+
+        # Exit 2 is "the run could not complete" and always fails the job: a job that goes
+        # green because the endpoint was unreachable is the failure mode this action exists to
+        # prevent. Exit 1 is a verdict, and whether a verdict fails the build is the caller's
+        # policy.
+        if [ "$code" = "2" ]; then
+          echo "::error::the audit could not complete"
+          exit 2
+        fi
+        if [ "$code" = "1" ]; then
+          echo "::error::the endpoint has departed from the envelope its attestation committed to (crossed at round $at)"
+          if [ "${{ inputs.fail-on-cross }}" = "true" ]; then exit 1; fi
+        fi
+        exit 0
+
+    - name: Summarise
+      if: always()
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        {
+          echo "### BACKSTOP audit"
+          echo ""
+          if [ -f "${{ inputs.report }}" ]; then
+            if [ "${{ steps.audit.outputs.crossed }}" = "true" ]; then
+              echo "**Crossed** at round ${{ steps.audit.outputs.crossed-at }}. The endpoint has departed from the envelope its attestation committed to."
+            else
+              echo "**Consistent** with the attested envelope over ${{ inputs.rounds }} round(s)."
+            fi
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| attestation | \`${{ inputs.attestation }}\` |"
+            echo "| rounds | ${{ inputs.rounds }} |"
+            echo "| draws per cell | ${{ inputs.draws }} |"
+            echo "| log M, RAY scale | \`${{ steps.audit.outputs.log-m }}\` |"
+          else
+            echo "The audit produced no verdict."
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload the verdict
-      if: always()
+      if: always() && inputs.upload-report == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: backstop-verdict
         path: ${{ inputs.report }}
+        if-no-files-found: warn

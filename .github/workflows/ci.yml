@@ -75,3 +75,30 @@ jobs:
       - run: pnpm --filter @backstop/core build
       - name: Lifetime Type-I bound
         run: pnpm --filter @backstop/core exec tsx scripts/gate-zero.ts --trials 200 --pools 4
+
+  # The audit, against an endpoint this repository stands up itself, on both the attested
+  # precision and the substitution. This is the whole product path in one job: the published
+  # CLI, the sampling contract the attestation pinned, the same normalization, the same engine.
+  # Both directions are asserted, because a detector that fires on everything is as useless as
+  # one that fires on nothing.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @backstop/core build
+      - run: pnpm --filter @backstop/sdk build
+      - run: pnpm --filter @backstop/cli build
+      - name: The attested precision must not cross, the substitution must
+        run: node scripts/ci-audit.mjs --rounds 6 --draws 96
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audit-verdicts
+          path: docs/results/ci/
+          if-no-files-found: warn

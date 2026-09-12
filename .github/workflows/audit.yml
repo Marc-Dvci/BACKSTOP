@@ -1,26 +1,144 @@
-# The audit BACKSTOP runs on its own reference endpoint, on the attestation cadence.
+# The audit BACKSTOP runs on its own endpoint, on the attestation cadence.
 #
 # This is the same action any team can drop into their pipeline: it fails the build when the
 # endpoint has departed from the envelope the evaluation was run against, which is the point at
 # which a benchmark number stops describing the system that was deployed.
+#
+# Two jobs, and the first one is the one that always runs. `reference` audits an endpoint this
+# repository stands up itself, on both the attested precision and the substitution, and asserts
+# each verdict. It needs no credential, so the action is exercised end to end on every schedule
+# rather than only when someone has funded a key. `live` audits a real hosted endpoint and is
+# skipped, not failed, when no endpoint is configured: a scheduled job that reports failure
+# because it was never given an endpoint teaches a reader to ignore it.
 name: endpoint audit
 
 on:
   schedule:
     - cron: "0 * * * *"
   workflow_dispatch:
+    inputs:
+      rounds:
+        description: "Rounds to run against the live endpoint"
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: endpoint-audit
+  cancel-in-progress: false
 
 jobs:
-  audit:
+  # The action, against an endpoint whose behaviour is known in both directions.
+  reference:
+    name: the reference endpoint, both configurations
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Build the CLI
+        run: |
+          pnpm install --frozen-lockfile --filter "@backstop/cli..."
+          pnpm --filter @backstop/core build
+          pnpm --filter @backstop/sdk build
+          pnpm --filter @backstop/cli build
+
+      # The attested precision. The action must go green, and it must go green because the
+      # evidence stayed inside the envelope rather than because nothing ran.
+      - name: Serve the attested precision
+        run: |
+          node scripts/reference-endpoint.mjs --serve bf16 --port 8123 --quiet &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8123/healthz >/dev/null && break; sleep 0.5; done
+          curl -sf http://127.0.0.1:8123/healthz
+
+      - name: Audit it
+        id: attested
+        uses: ./action
+        with:
+          attestation: attestations/reference.json
+          pool: pools/v1.json
+          base-url: http://127.0.0.1:8123/v1
+          model: local
+          rounds: 6
+          draws: 96
+          report: verdict-attested.json
+          upload-report: "false"
+
+      # The substitution. `fail-on-cross: false` is the mode a team adopting the audit runs
+      # first, recording the verdict without gating the build on it, so the crossing is
+      # asserted here rather than thrown by the action.
+      - name: Serve the substitution
+        run: |
+          node scripts/reference-endpoint.mjs --serve q4km --port 8124 --quiet &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8124/healthz >/dev/null && break; sleep 0.5; done
+          curl -sf http://127.0.0.1:8124/healthz
+
+      - name: Audit it
+        id: substituted
+        uses: ./action
+        with:
+          attestation: attestations/reference.json
+          pool: pools/v1.json
+          base-url: http://127.0.0.1:8124/v1
+          model: local
+          rounds: 6
+          draws: 96
+          report: verdict-substituted.json
+          fail-on-cross: "false"
+          upload-report: "false"
+
+      - name: Both verdicts must be the ones the envelope predicts
+        run: |
+          set -e
+          attested='${{ steps.attested.outputs.crossed }}'
+          substituted='${{ steps.substituted.outputs.crossed }}'
+          echo "attested precision crossed: $attested"
+          echo "substitution crossed:       $substituted (round ${{ steps.substituted.outputs.crossed-at }})"
+          [ "$attested" = "false" ] || { echo "::error::the attested precision crossed its own envelope"; exit 1; }
+          [ "$substituted" = "true" ] || { echo "::error::the substitution was not caught"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reference-verdicts
+          path: verdict-*.json
+          if-no-files-found: warn
+
+  # A real hosted endpoint, when one has been configured. Set the INFERENCE_BASE_URL and
+  # INFERENCE_MODEL repository variables and the INFERENCE_API_KEY secret to turn this on.
+  live:
+    name: the live endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is an endpoint configured
+        id: configured
+        env:
+          BASE_URL: ${{ vars.INFERENCE_BASE_URL }}
+        run: |
+          if [ -n "$BASE_URL" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "No INFERENCE_BASE_URL is set, so there is no live endpoint to audit." >> "$GITHUB_STEP_SUMMARY"
+            echo "The reference job audits an endpoint this repository stands up itself and runs unconditionally." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - uses: ./action
+        if: steps.configured.outputs.yes == 'true'
         with:
           attestation: attestations/reference.json
           pool: pools/v1.json
           base-url: ${{ vars.INFERENCE_BASE_URL }}
           model: ${{ vars.INFERENCE_MODEL }}
           api-key: ${{ secrets.INFERENCE_API_KEY }}
-          rounds: 1
+          rounds: ${{ inputs.rounds || '1' }}
           draws: 96
