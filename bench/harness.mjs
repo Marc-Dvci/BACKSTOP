@@ -26,17 +26,39 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MODELS = join(HERE, "models");
+const MODELS = process.env.BACKSTOP_MODELS ?? join(HERE, "models");
 
 const LLAMA_SERVER =
   process.env.LLAMA_SERVER ??
   "D:/textgen/text-generation-webui-main/text-generation-webui-main/installer_files/env/Lib/site-packages/llama_cpp_binaries/bin/llama-server.exe";
 
-/** The declared serving configurations. Same checkpoint, different quantisation recipe. */
-const CONFIGS = {
-  bf16: { file: "qwen3-1.7b-bf16.gguf", precision: "BF16", label: "attested precision" },
-  q8_0: { file: "qwen3-1.7b-q8_0.gguf", precision: "Q8_0", label: "declared envelope element" },
-  q4km: { file: "qwen3-1.7b-q4km.gguf", precision: "Q4_K_M", label: "substitution" },
+/**
+ * The declared serving configurations, per model set. Same checkpoint, different quantisation
+ * recipe. `--set` picks the checkpoint, `--config` the configurations within it.
+ */
+const MODEL_SETS = {
+  qwen3: {
+    model: "Qwen3-1.7B",
+    source: "unsloth/Qwen3-1.7B-GGUF",
+    // Qwen3 exposes a reasoning mode, and the same model with thinking on and thinking off is,
+    // to a single-token battery, two different endpoints.
+    extraBody: { chat_template_kwargs: { enable_thinking: false } },
+    configs: {
+      bf16: { file: "qwen3-1.7b-bf16.gguf", precision: "BF16", label: "attested precision" },
+      q8_0: { file: "qwen3-1.7b-q8_0.gguf", precision: "Q8_0", label: "declared envelope element" },
+      q4km: { file: "qwen3-1.7b-q4km.gguf", precision: "Q4_K_M", label: "substitution" },
+    },
+  },
+  llama31: {
+    model: "Llama-3.1-8B-Instruct",
+    source: "unsloth/Llama-3.1-8B-Instruct-GGUF, bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+    extraBody: {},
+    configs: {
+      bf16: { file: "llama31-8b-bf16.gguf", precision: "BF16", label: "attested precision" },
+      q8_0: { file: "llama31-8b-q8_0.gguf", precision: "Q8_0", label: "declared envelope element" },
+      q4km: { file: "llama31-8b-q4km.gguf", precision: "Q4_K_M", label: "substitution" },
+    },
+  },
 };
 
 const arg = (name, fallback) => {
@@ -44,6 +66,10 @@ const arg = (name, fallback) => {
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
 
+const SET_NAME = String(arg("set", "qwen3"));
+const SET = MODEL_SETS[SET_NAME];
+if (!SET) throw new Error(`unknown model set ${SET_NAME}`);
+const CONFIGS = SET.configs;
 const DRAWS = Number(arg("draws", 400));
 const CELL_COUNT = Number(arg("cells", 8));
 const PORT = Number(arg("port", 8080));
@@ -52,6 +78,14 @@ const CONCURRENCY = Number(arg("concurrency", 16));
 const PARALLEL = String(arg("parallel", "16"));
 const OUT = resolve(HERE, arg("out", "out/laws.json"));
 const wanted = String(arg("config", "bf16,q8_0,q4km")).split(",");
+// `--only` restricts the run to named cells, so one cell can be measured per machine and the
+// files merged afterwards with bench/merge-laws.mjs.
+const ONLY = arg("only", null);
+// `--tag` names the configuration in the output when the serving stack differs from the one the
+// name implies, e.g. `q8_0-cpu` for the same weights on llama.cpp's CPU backend.
+const TAG = arg("tag", null);
+const THREADS = arg("threads", null);
+const CHAT_TEMPLATE_FILE = arg("chat-template-file", null);
 
 // ---------------------------------------------------------------- the battery
 
@@ -62,19 +96,20 @@ const { CELLS, generateProbes, countResponses, buildChatRequest, samplingContrac
 });
 
 const PROBE_SEED = "0x" + "11".repeat(32);
-const cells = CELLS.slice(0, CELL_COUNT);
+const cells = ONLY
+  ? String(ONLY).split(",").map((id) => {
+      const cell = CELLS.find((c) => c.id === id);
+      if (!cell) throw new Error(`unknown cell ${id}`);
+      return cell;
+    })
+  : CELLS.slice(0, CELL_COUNT);
 
-/**
- * The sampling contract the reference is measured under.
- *
- * Every later caller sends exactly this. Qwen3 exposes a reasoning mode, and the same model
- * with thinking on and thinking off is, to a single-token battery, two different endpoints.
- */
+/** The sampling contract the reference is measured under. Every later caller sends exactly this. */
 const SAMPLING = {
   temperature: 1,
   topP: 1,
   maxTokens: 24,
-  extraBody: { chat_template_kwargs: { enable_thinking: false } },
+  extraBody: SET.extraBody,
 };
 
 // ---------------------------------------------------------------- server control
@@ -108,6 +143,8 @@ async function withServer(modelPath, port, fn) {
       "--parallel", PARALLEL,
       "--no-webui",
       "--log-disable",
+      ...(THREADS ? ["-t", String(THREADS)] : []),
+      ...(CHAT_TEMPLATE_FILE ? ["--jinja", "--chat-template-file", CHAT_TEMPLATE_FILE] : []),
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
@@ -157,6 +194,9 @@ async function measureCell(port, cell, draws, concurrency = CONCURRENCY) {
 
 // ---------------------------------------------------------------- run
 
+// The engine is recorded per configuration, because the same weights on a different build or
+// backend are a different serving stack and may answer differently.
+const ENGINE = arg("engine", "llama.cpp server");
 const results = {};
 const started = Date.now();
 
@@ -192,7 +232,12 @@ for (const name of wanted) {
       );
     }
   });
-  results[name] = { precision: cfg.precision, label: cfg.label, cells: cellResults };
+  results[TAG ?? name] = {
+    precision: cfg.precision,
+    label: cfg.label,
+    engine: ENGINE,
+    cells: cellResults,
+  };
 }
 
 mkdirSync(dirname(OUT), { recursive: true });
@@ -200,9 +245,9 @@ writeFileSync(
   OUT,
   JSON.stringify(
     {
-      model: "Qwen3-1.7B",
-      source: "unsloth/Qwen3-1.7B-GGUF",
-      engine: "llama.cpp server",
+      model: SET.model,
+      source: SET.source,
+      engine: ENGINE,
       probeSeed: PROBE_SEED,
       drawsPerCell: DRAWS,
       sampling: SAMPLING,

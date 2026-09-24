@@ -1,0 +1,99 @@
+# Measure a serving stack on the machines that will serve it.
+#
+# The same weights on a different llama.cpp build or backend are a different serving stack, and
+# a single-token battery can tell them apart. So the live endpoint's own configuration is
+# measured here, on GitHub's runners with the pinned llama.cpp release, and declared as an
+# element of the envelope rather than assumed to sit inside one measured elsewhere.
+#
+# One job per cell, so 20,000 draws per cell fit comfortably inside a runner's time limit.
+name: measure a serving stack
+
+on:
+  workflow_dispatch:
+    inputs:
+      set:
+        description: "Model set (bench/harness.mjs MODEL_SETS)"
+        default: "qwen3"
+      config:
+        description: "Configuration to measure"
+        default: "q8_0"
+      tag:
+        description: "Name the configuration carries in the laws file"
+        default: "q8_0-cpu"
+      draws:
+        description: "Draws per cell"
+        default: "20000"
+      llama:
+        description: "llama.cpp release"
+        default: "b11163"
+
+permissions:
+  contents: read
+
+jobs:
+  cell:
+    name: ${{ matrix.cell }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: [digit.en, digit.fr, digit.es, digit.zh, letter.en, letter.fr, letter.es, letter.zh]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: |
+          pnpm install --frozen-lockfile --filter "@backstop/core..."
+          pnpm --filter @backstop/core build
+
+      - name: llama.cpp ${{ inputs.llama }}
+        id: llama
+        uses: ./.github/actions/llama-cpp
+        with:
+          release: ${{ inputs.llama }}
+          set: ${{ inputs.set }}
+          config: ${{ inputs.config }}
+
+      - name: Measure
+        env:
+          LLAMA_SERVER: ${{ steps.llama.outputs.server }}
+          BACKSTOP_MODELS: ${{ steps.llama.outputs.models }}
+        run: |
+          node bench/harness.mjs --set "${{ inputs.set }}" --config "${{ inputs.config }}" \
+            --tag "${{ inputs.tag }}" --only "${{ matrix.cell }}" --draws "${{ inputs.draws }}" \
+            --ngl 0 --threads "$(nproc)" --parallel 4 --concurrency 4 \
+            --engine "llama.cpp ${{ inputs.llama }} CPU, ubuntu-24.04 runner" \
+            --out "out/part-${{ matrix.cell }}.json"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: laws-${{ matrix.cell }}
+          path: bench/out/part-${{ matrix.cell }}.json
+
+  merge:
+    needs: cell
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: |
+          pnpm install --frozen-lockfile --filter "@backstop/core..."
+          pnpm --filter @backstop/core build
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: laws-*
+          path: parts
+          merge-multiple: true
+      - run: node bench/merge-laws.mjs --out "bench/out/laws-${{ inputs.set }}-${{ inputs.tag }}.json" parts/*.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: laws-${{ inputs.set }}-${{ inputs.tag }}
+          path: bench/out/laws-${{ inputs.set }}-${{ inputs.tag }}.json

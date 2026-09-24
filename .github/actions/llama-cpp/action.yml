@@ -1,0 +1,62 @@
+# A pinned llama.cpp CPU build and the GGUF weights a configuration names, both cached.
+#
+# Shared by the stack measurement and the live cadence, so the endpoint that is audited runs
+# exactly the build and the weights its envelope element was measured on.
+name: llama.cpp
+description: Pinned llama.cpp release and cached GGUF weights
+inputs:
+  release:
+    description: llama.cpp release tag
+    required: true
+  set:
+    description: Model set, qwen3 or llama31
+    default: qwen3
+  config:
+    description: Comma-separated configurations whose weights to fetch
+    default: q8_0
+outputs:
+  server:
+    description: Path to llama-server
+    value: ${{ steps.bin.outputs.server }}
+  models:
+    description: Directory holding the weights, named as bench/harness.mjs expects
+    value: ${{ steps.weights.outputs.dir }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v5
+      with:
+        path: ~/llama-${{ inputs.release }}
+        key: llama-cpp-${{ inputs.release }}-ubuntu-x64
+    - id: bin
+      shell: bash
+      run: |
+        dir="$HOME/llama-${{ inputs.release }}"
+        if [ ! -d "$dir" ]; then
+          mkdir -p "$dir"
+          curl -sL --fail "https://github.com/ggml-org/llama.cpp/releases/download/${{ inputs.release }}/llama-${{ inputs.release }}-bin-ubuntu-x64.tar.gz" | tar -xz -C "$dir"
+        fi
+        server="$(find "$dir" -name llama-server -type f | head -1)"
+        chmod +x "$server"
+        echo "server=$server" >> "$GITHUB_OUTPUT"
+        LD_LIBRARY_PATH="$(dirname "$server"):${LD_LIBRARY_PATH:-}" "$server" --version 2>&1 | tail -2
+    - uses: actions/cache@v5
+      with:
+        path: ~/gguf
+        key: gguf-${{ inputs.set }}-${{ inputs.config }}
+    - id: weights
+      shell: bash
+      run: |
+        mkdir -p "$HOME/gguf" && cd "$HOME/gguf"
+        fetch() { [ -f "$2" ] || curl -sL --fail -o "$2" "$1"; ls -la "$2"; }
+        for cfg in $(echo "${{ inputs.config }}" | tr ',' ' '); do
+          case "${{ inputs.set }}/$cfg" in
+            qwen3/bf16) fetch https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-BF16.gguf qwen3-1.7b-bf16.gguf ;;
+            qwen3/q8_0) fetch https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf qwen3-1.7b-q8_0.gguf ;;
+            qwen3/q4km) fetch https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf qwen3-1.7b-q4km.gguf ;;
+            *) echo "::error::no weights mapped for ${{ inputs.set }}/$cfg"; exit 1 ;;
+          esac
+        done
+        echo "dir=$HOME/gguf" >> "$GITHUB_OUTPUT"
+    - shell: bash
+      run: echo "LD_LIBRARY_PATH=$(dirname '${{ steps.bin.outputs.server }}'):${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
