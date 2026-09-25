@@ -297,7 +297,7 @@ export default async function EndpointPage({ params }: { params: Promise<{ versi
           </div>
           <div className="panel-body prose" style={{ fontSize: 13 }}>
             <p>
-              Each round, llama.cpp serves Qwen3-1.7B on a GitHub Actions runner and receives the
+              Each round, llama.cpp serves Qwen3-1.7B on the host its record names and receives the
               round&rsquo;s committed probes, one request each. The record carries the seed material,
               the observed counts, a commitment per transcript and the calibration slice the round
               consumed with a proof per block; the transcripts sit beside it, request and response
