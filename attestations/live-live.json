@@ -1,0 +1,116 @@
+{
+  "schema": "backstop/attestation@1",
+  "key": "live",
+  "label": "qwen3-1.7b, llama.cpp CPU, live",
+  "endpointId": "0x378003b77ab589c1d7e4b6e0640901e125d8f56c9d0fd5e0c5e1113a9c4d8e0b",
+  "issuer": {
+    "address": "0x6a7a1b53C7A11a1BA046Ac2C43D8004810F9870b",
+    "agentId": "1824"
+  },
+  "provider": {
+    "address": "0x95a9795B459d77Fc1dfF7dBA4DA14580341Ef9ee",
+    "agentId": "1927"
+  },
+  "endpoint": {
+    "url": {
+      "value": "llama.cpp server on a GitHub Actions runner, started per round",
+      "provenance": "issuer_observed"
+    },
+    "modelSlug": {
+      "value": "local",
+      "provenance": "issuer_observed"
+    }
+  },
+  "modelIdentity": {
+    "checkpointDigest": {
+      "value": "unsloth/Qwen3-1.7B-GGUF",
+      "provenance": "provider_declared"
+    },
+    "quantizationRecipe": {
+      "value": "Q8_0",
+      "provenance": "provider_declared"
+    }
+  },
+  "servingStack": {
+    "engine": {
+      "value": "llama.cpp b11163, CPU backend",
+      "provenance": "provider_declared"
+    }
+  },
+  "sampling": {
+    "temperature": 1,
+    "topP": 1,
+    "maxTokens": 24,
+    "extraBody": {
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    }
+  },
+  "samplingContractHash": "0x1746c52e812efb3418f89582bebe59a2201df93c8e6b529063a9f3f868014671",
+  "alphaRay": "50000000000000002382364672",
+  "lambdaRay": "500000000000000000000000000",
+  "m": 99,
+  "n": 96,
+  "nR": 8000,
+  "tMax": 90,
+  "cellsPerRound": 8,
+  "cellIds": [
+    "digit.en",
+    "digit.fr",
+    "digit.es",
+    "digit.zh",
+    "letter.en",
+    "letter.fr",
+    "letter.es",
+    "letter.zh"
+  ],
+  "mixtureIds": [
+    "cfg-bf16",
+    "cfg-q8_0",
+    "cfg-q8_0-cpu",
+    "mix-50"
+  ],
+  "poolRoot": "0x392a91b9b36e0a3c5f4bb016a73f5142fcbbf58fc5ec6f885c1b6c70928957f4",
+  "seedChainRoot": "0xfb7711a24d69c77f8310df230473615c57c529f293f8d14097bc57e16c06c112",
+  "probePoolRoot": "0x3de887614cfab59cdf2a0a8e3d114977dd48df6da732f44c8d49d9ede55c8c8e",
+  "beacon": {
+    "name": "drand quicknet",
+    "chainHash": "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971"
+  },
+  "canonicalArithmeticHash": "0x396a8c70eed71797834c7de8965f1c74fccfd38a8046d9806fb12bcc8bb55366",
+  "normalizationImplHash": "0x45abe0761f866e0c8752883124eca99a7a15c9b21294147e61553a86d5eddaff",
+  "envelope": {
+    "elements": [
+      {
+        "id": "cfg-bf16",
+        "precision": "BF16",
+        "engine": "llama.cpp 88a0aaa CUDA, RTX 4070"
+      },
+      {
+        "id": "cfg-q8_0",
+        "precision": "Q8_0",
+        "engine": "llama.cpp 88a0aaa CUDA, RTX 4070"
+      },
+      {
+        "id": "cfg-q8_0-cpu",
+        "precision": "Q8_0",
+        "engine": "llama.cpp b11163 CPU, ubuntu-24.04 runner"
+      }
+    ],
+    "mixtureSet": [
+      {
+        "id": "mix-50",
+        "weights": {
+          "cfg-bf16": "0.5",
+          "cfg-q8_0": "0.5"
+        }
+      }
+    ],
+    "provenance": "issuer_constructed"
+  },
+  "seasoningRounds": 2,
+  "warningRay": "8000000000000000000000000000",
+  "measuredDrawsPerCell": 20000,
+  "version": 5
+}

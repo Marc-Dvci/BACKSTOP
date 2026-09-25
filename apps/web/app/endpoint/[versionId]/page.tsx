@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EProcessChart, type Trace } from "@/components/EProcessChart";
 import { getEndpoint, getEndpoints, getPolicies, getRounds } from "@/lib/data";
 import { formatRay, expRay, usdc, short, ago, VERSION_STATUS } from "@/lib/format";
+import { getLiveRounds, getProviderReputation, liveKeyOf, liveState, LIVE_DATA, LIVE_DATA_TREE } from "@/lib/live";
 
 // The index is a live view of chain state, so it is rendered per request rather than
 // prerendered at build time against whatever the build machine could reach.
@@ -16,11 +17,23 @@ export default async function EndpointPage({ params }: { params: Promise<{ versi
   if (!endpoint) notFound();
 
   const [rounds, policies, all] = await Promise.all([getRounds(id), getPolicies(), getEndpoints()]);
+  const liveKey = liveKeyOf(id);
+  const [liveRounds, reputation] = liveKey
+    ? await Promise.all([getLiveRounds(id), getProviderReputation()])
+    : [null, null];
   const mine = policies.filter((p) => p.versionId === id);
 
   // The control endpoint, drawn beside the audited one so the false-alarm behaviour is visible
-  // on the same axes rather than asserted in prose.
-  const control = all.find((e) => e.versionId !== id && e.settlementEligible && e.closedRounds > 0);
+  // on the same axes rather than asserted in prose. It comes from the same family (live against
+  // live, seeded against seeded) and is never a version that has itself crossed.
+  const control = all.find(
+    (e) =>
+      e.versionId !== id &&
+      e.settlementEligible &&
+      e.closedRounds > 0 &&
+      Boolean(e.attestationUrl) === Boolean(endpoint.attestationUrl) &&
+      !(e.boundaryRay > 0n && e.versionLogRay >= e.boundaryRay),
+  );
   const controlRounds = control ? await getRounds(control.versionId) : [];
 
   const traces: Trace[] = [
@@ -272,6 +285,84 @@ export default async function EndpointPage({ params }: { params: Promise<{ versi
           </table>
         </div>
       </div>
+
+      {liveKey && (
+        <div className="panel" style={{ marginTop: 20 }}>
+          <div className="panel-head">
+            <span className="panel-title">Published rounds, from real completions</span>
+            <span className="spacer" />
+            <a className="hint" href={LIVE_DATA_TREE}>
+              live-data branch
+            </a>
+          </div>
+          <div className="panel-body prose" style={{ fontSize: 13 }}>
+            <p>
+              Each round, llama.cpp serves Qwen3-1.7B on a GitHub Actions runner and receives the
+              round&rsquo;s committed probes, one request each. The record carries the seed material,
+              the observed counts, a commitment per transcript and the calibration slice the round
+              consumed with a proof per block; the transcripts sit beside it, request and response
+              byte for byte. Recompute any row from its record alone:
+            </p>
+            <pre style={{ fontSize: 12 }}>
+              <code>{`curl -sO ${LIVE_DATA}/v${id}/round-<n>.json
+backstop replay --record round-<n>.json --attestation attestations/live-${liveKey}.json`}</code>
+            </pre>
+            {reputation && (
+              <p style={{ marginBottom: 0 }}>
+                ERC-8004: after every round the auditor (agent 1824, through its declared agent
+                wallet) writes the running −log M to the Reputation Registry against the
+                provider&rsquo;s agent {liveState.provider.agentId}.{" "}
+                {reputation.count} feedback entr{reputation.count === 1 ? "y" : "ies"}, summary value{" "}
+                {reputation.value.toFixed(4)}.
+              </p>
+            )}
+          </div>
+          <div className="scroll-x">
+            <table>
+              <thead>
+                <tr>
+                  <th className="tnum">Round</th>
+                  <th>Served</th>
+                  <th className="tnum">E(t)</th>
+                  <th className="tnum">log M</th>
+                  <th className="tnum">drand round</th>
+                  <th className="tnum">Completions</th>
+                  <th>Record</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(liveRounds ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ color: "var(--text-faint)" }}>
+                      the first round publishes with the next scheduled run
+                    </td>
+                  </tr>
+                )}
+                {(liveRounds ?? []).map((r) => (
+                  <tr key={r.round}>
+                    <td className="tnum">{r.round}</td>
+                    <td>{r.served === "q4km" ? <span className="badge badge-alarm">Q4_K_M</span> : "Q8_0"}</td>
+                    <td className="tnum">{r.eRound.toFixed(4)}</td>
+                    <td className="tnum">{r.logM.toFixed(4)}</td>
+                    <td className="tnum">
+                      <a href={`https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/${r.drandRound}`}>
+                        {r.drandRound}
+                      </a>
+                    </td>
+                    <td className="tnum">
+                      {r.completions - r.voided} / {r.completions}
+                    </td>
+                    <td>
+                      <a href={`${LIVE_DATA}/${r.record}`}>record</a> ·{" "}
+                      <a href={`${LIVE_DATA}/${r.transcripts}`}>transcripts</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </>
   );
 }

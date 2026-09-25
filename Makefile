@@ -69,6 +69,15 @@ round-record: ## Export the crossing round as a replayable record, checked again
 	node scripts/export-round.mjs --out docs/results/round-primary-crossing.json
 
 replay: build round-record ## Recompute the published verdict from the record alone
-	node packages/cli/dist/index.js replay --record docs/results/round-primary-crossing.json --attestation attestations/reference.json --pool pools/v1.json
+	node packages/cli/dist/index.js replay --record docs/results/round-primary-crossing.json --attestation attestations/reference.json
 
-.PHONY: help install build test demo endpoint ci-audit gate-zero bench vectors harness web deploy-testnet register-agent seed-testnet indexer round-record replay
+replay-live: build ## Recompute a live round, served by llama.cpp, from its published record. V=<version> R=<round>
+	node scripts/live/replay.mjs $(if $(V),--version $(V)) $(if $(R),--round $(R))
+
+measure-stack: ## Measure the live endpoint's serving stack on GitHub's runners, one job per cell
+	gh workflow run measure-stack.yml
+
+pack-cli: build ## Bundle the CLI as the standalone npm package backstop-audit
+	node scripts/pack-cli.mjs
+
+.PHONY: help install build test demo endpoint ci-audit gate-zero bench vectors harness web deploy-testnet register-agent seed-testnet indexer round-record replay replay-live measure-stack pack-cli

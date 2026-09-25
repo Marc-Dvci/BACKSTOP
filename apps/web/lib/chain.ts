@@ -86,6 +86,8 @@ export interface EndpointRow {
   cellsPerRound: number;
   mixtureSize: number;
   uri: string;
+  /** Where the public attestation lives, for versions whose URI names one. */
+  attestationUrl?: string;
   attestationDigest: Hex;
   referencePoolRoot: Hex;
   seasoningRounds: number;
@@ -181,6 +183,7 @@ export async function readEndpoints(): Promise<EndpointRow[]> {
       cellsPerRound: Number(v.stats.cellsPerRound),
       mixtureSize: Number(v.stats.mixtureSize),
       uri: v.uri,
+      attestationUrl: meta.attestationUrl,
       attestationDigest: v.commitments.attestationDigest,
       referencePoolRoot: v.commitments.referencePoolRoot,
       seasoningRounds: Number(v.seasoningRounds),
@@ -313,15 +316,17 @@ export async function readPolicies(): Promise<PolicyRow[]> {
 }
 
 /** Attestation URIs carry a compact label so the index reads without a second fetch. */
-function parseUri(uri: string): { label: string; provider: string; model: string } {
-  // backstop://<provider>/<model>?label=<text>
+function parseUri(uri: string): { label: string; provider: string; model: string; attestationUrl?: string } {
+  // backstop://<provider>/<model>?label=<text>[&attestation=<url>]
   try {
     const withoutScheme = uri.replace(/^backstop:\/\//, "");
     const [path, query] = withoutScheme.split("?");
     const [provider, ...modelParts] = (path ?? "").split("/");
     const model = modelParts.join("/");
-    const label = new URLSearchParams(query ?? "").get("label") ?? model;
-    return { label, provider: provider ?? "unknown", model: model || uri };
+    const params = new URLSearchParams(query ?? "");
+    const label = params.get("label") ?? model;
+    const attestationUrl = params.get("attestation") ?? undefined;
+    return { label, provider: provider ?? "unknown", model: model || uri, attestationUrl };
   } catch {
     return { label: uri, provider: "unknown", model: uri };
   }

@@ -10,7 +10,10 @@ export const revalidate = 0;
 export default async function IndexPage() {
   // The source is resolved first, so every panel below agrees about what it is reading.
   const source = await dataSource();
-  const [endpoints, pool, policies] = await Promise.all([getEndpoints(), getPool(), getPolicies()]);
+  const [all, pool, policies] = await Promise.all([getEndpoints(), getPool(), getPolicies()]);
+  // Retired versions keep their history on their own pages; the index lists what is running.
+  const endpoints = all.filter((e) => e.status !== 2);
+  const retired = all.filter((e) => e.status === 2);
   const settlement = endpoints.filter((e) => e.settlementEligible);
   const measurement = endpoints.filter((e) => !e.settlementEligible);
   const activePolicies = policies.filter((p) => p.status === 1);
@@ -107,7 +110,8 @@ export default async function IndexPage() {
                       <Link href={`/endpoint/${e.versionId}`} style={{ color: "var(--text)" }}>
                         <div>{e.label}</div>
                         <div style={{ color: "var(--text-faint)", fontSize: 11 }}>
-                          {e.provider} · v{e.versionId}
+                          {e.provider} · v{e.versionId} ·{" "}
+                          {e.attestationUrl ? "real completions, published per round" : "rounds drawn from the measured laws"}
                         </div>
                       </Link>
                     </td>
@@ -149,6 +153,18 @@ export default async function IndexPage() {
             </tbody>
           </table>
         </div>
+        {retired.length > 0 && (
+          <div className="panel-body hint" style={{ fontSize: 12, paddingTop: 0 }}>
+            Retired:{" "}
+            {retired.map((e, i) => (
+              <span key={e.versionId}>
+                {i > 0 ? ", " : ""}
+                <Link href={`/endpoint/${e.versionId}`}>v{e.versionId}</Link> {e.label}
+              </span>
+            ))}
+            .
+          </div>
+        )}
       </div>
 
       <div className="grid grid-2">

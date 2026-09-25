@@ -1,0 +1,127 @@
+# The live cadence.
+#
+# Each run closes one round per live version on Monad testnet from real completions: llama.cpp
+# serves Qwen3-1.7B on this runner with the build and weights the envelope element was measured
+# on, the round's committed probes go to it one request each, and the transcripts, the verdict
+# and the calibration slice the round consumed are published to the live-data branch, where
+# `backstop replay` recomputes E(t) from the record alone.
+#
+#   live       serves Q8_0 for its whole lifetime, a declared element of the envelope
+#   switched   serves Q8_0, then Q4_K_M from round 3; policies written on it settle when it crosses
+#
+# The issuer key held here is registered for these versions only. Governance stays on the machine
+# that deployed the contracts.
+name: live cadence
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      keys:
+        description: "Versions to advance"
+        default: "live,switched"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-data
+  cancel-in-progress: false
+
+env:
+  LLAMA_RELEASE: b11163
+
+jobs:
+  round:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      LIVE_ISSUER_KEY: ${{ secrets.LIVE_ISSUER_KEY }}
+      LIVE_SEED_SECRET: ${{ secrets.LIVE_SEED_SECRET }}
+      LIVE_POOL_SECRET: ${{ secrets.LIVE_POOL_SECRET }}
+      LIVE_PROBE_SECRET: ${{ secrets.LIVE_PROBE_SECRET }}
+    steps:
+      - name: Is the issuer configured
+        id: configured
+        run: |
+          if [ -n "$LIVE_ISSUER_KEY" ] && [ -n "$LIVE_SEED_SECRET" ] && [ -n "$LIVE_POOL_SECRET" ] && [ -n "$LIVE_PROBE_SECRET" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "The issuer secrets are not set on this repository, so no round runs here." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.configured.outputs.yes == 'true'
+      - uses: pnpm/action-setup@v6
+        if: steps.configured.outputs.yes == 'true'
+      - uses: actions/setup-node@v7
+        if: steps.configured.outputs.yes == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Build
+        if: steps.configured.outputs.yes == 'true'
+        run: |
+          pnpm install --frozen-lockfile --filter "@backstop/sdk..."
+          pnpm --filter @backstop/core build
+          pnpm --filter @backstop/sdk build
+
+      - name: llama.cpp and the weights
+        if: steps.configured.outputs.yes == 'true'
+        id: llama
+        uses: ./.github/actions/llama-cpp
+        with:
+          release: ${{ env.LLAMA_RELEASE }}
+          set: qwen3
+          config: q8_0,q4km
+
+      - name: The live-data branch
+        if: steps.configured.outputs.yes == 'true'
+        run: |
+          if git ls-remote --exit-code --heads origin live-data >/dev/null; then
+            git fetch --depth 1 origin live-data
+            git worktree add data origin/live-data
+            git -C data checkout -B live-data
+          else
+            git worktree add --orphan -b live-data data
+          fi
+
+      - name: Advance each version by one round
+        if: steps.configured.outputs.yes == 'true'
+        env:
+          SERVER: ${{ steps.llama.outputs.server }}
+          MODELS: ${{ steps.llama.outputs.models }}
+        run: |
+          set -u
+          declare -A FILE=( [q8_0]=qwen3-1.7b-q8_0.gguf [q4km]=qwen3-1.7b-q4km.gguf )
+          for key in $(echo "${{ inputs.keys || 'live,switched' }}" | tr ',' ' '); do
+            echo "::group::$key"
+            plan=$(node scripts/live/round.mjs --key "$key" --plan | tee /dev/stderr | sed -n 's/^SERVE=//p') || true
+            if [ -z "$plan" ]; then echo "nothing to run for $key"; echo "::endgroup::"; continue; fi
+            "$SERVER" -m "$MODELS/${FILE[$plan]}" --port 8201 --host 127.0.0.1 -t "$(nproc)" \
+              -c 8192 --parallel 4 --no-webui --log-disable > "server-$key.log" 2>&1 &
+            pid=$!
+            for i in $(seq 1 120); do curl -sf http://127.0.0.1:8201/health >/dev/null && break; sleep 1; done
+            status=0
+            node scripts/live/round.mjs --key "$key" --endpoint "$plan=http://127.0.0.1:8201/v1" --out-dir data \
+              || status=$?
+            kill $pid; wait $pid 2>/dev/null || true
+            if [ "$status" != "0" ] && [ "$status" != "3" ]; then cat "server-$key.log" | tail -20; exit "$status"; fi
+            echo "::endgroup::"
+          done
+
+      - name: Settle coverage on a version that crossed
+        if: steps.configured.outputs.yes == 'true'
+        run: node scripts/live/coverage.mjs settle --key switched || [ $? = 3 ]
+
+      - name: Publish
+        if: steps.configured.outputs.yes == 'true'
+        run: |
+          cd data
+          git config user.name "backstop-cadence"
+          git config user.email "backstop-cadence@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Close $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin live-data

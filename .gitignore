@@ -36,3 +36,7 @@ bench/models/
 
 # The CI audit writes its verdicts here on every run; they are regenerated, not published.
 docs/results/ci/
+
+# The indexer log cache travels on the live-data branch
+indexer/rpc-cache.json
+dist-npm/

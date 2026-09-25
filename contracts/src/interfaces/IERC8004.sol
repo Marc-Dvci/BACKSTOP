@@ -23,13 +23,24 @@ interface IIdentityRegistry {
     function setAgentURI(uint256 agentId, string calldata tokenURI) external;
 }
 
+/// The deployed Reputation Registry (erc-8004-contracts 2.0.0). A feedback value is a signed
+/// fixed-point number with its own decimals, and tags are strings. The registry refuses feedback
+/// from the agent's owner or approved operators, so a provider is a separate agent from the
+/// auditor that writes about it.
 interface IReputationRegistry {
     function giveFeedback(
         uint256 agentId,
-        uint8 score,
-        bytes32 tag1,
-        bytes32 tag2,
-        string calldata fileuri,
-        bytes32 filehash
+        int128 value,
+        uint8 valueDecimals,
+        string calldata tag1,
+        string calldata tag2,
+        string calldata endpoint,
+        string calldata feedbackURI,
+        bytes32 feedbackHash
     ) external;
+
+    function getSummary(uint256 agentId, address[] calldata clientAddresses, string calldata tag1, string calldata tag2)
+        external
+        view
+        returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals);
 }

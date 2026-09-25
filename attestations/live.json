@@ -1,0 +1,25 @@
+{
+  "issuer": "0x6a7a1b53C7A11a1BA046Ac2C43D8004810F9870b",
+  "provider": {
+    "address": "0x95a9795B459d77Fc1dfF7dBA4DA14580341Ef9ee",
+    "agentId": "1927",
+    "agentURI": "https://backstop-smoky.vercel.app/providers/backstop-reference.json"
+  },
+  "versions": {
+    "live": {
+      "versionId": 5,
+      "attestation": "attestations/live-live.json",
+      "label": "qwen3-1.7b, llama.cpp CPU, live"
+    },
+    "switched": {
+      "versionId": 6,
+      "attestation": "attestations/live-switched.json",
+      "label": "qwen3-1.7b, llama.cpp CPU, switches to Q4_K_M",
+      "policies": [
+        5,
+        6,
+        7
+      ]
+    }
+  }
+}
