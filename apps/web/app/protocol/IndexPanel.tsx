@@ -71,6 +71,31 @@ make web         # the app at localhost:3000, reading it`}</code>
   );
 }
 
+/** Where the numbers below came from, stated above them. */
+function SourceLine({ source }: { source: IndexedView["source"] }) {
+  if (source.kind === "live") {
+    return (
+      <p className="hint" style={{ fontSize: 12, marginBottom: 12 }}>
+        Live from the indexer at <code>{source.url}</code>.
+      </p>
+    );
+  }
+  const when = new Date(source.takenAt * 1000).toISOString().replace("T", " ").slice(0, 16);
+  return (
+    <p className="hint" style={{ fontSize: 12, marginBottom: 12 }}>
+      Snapshot of the self-hosted indexer at block {source.block.toLocaleString()}, {when} UTC,
+      taken by the scheduled index job
+      {source.run ? (
+        <>
+          {" "}
+          (<a href={source.run}>run</a>)
+        </>
+      ) : null}
+      . <a href={source.url}>Raw JSON</a>. Run <code>make indexer</code> to query it live.
+    </p>
+  );
+}
+
 function Index({ view }: { view: IndexedView }) {
   const p = view.protocol;
   const meanDelay =
@@ -86,6 +111,7 @@ function Index({ view }: { view: IndexedView }) {
 
   return (
     <>
+      <SourceLine source={view.source} />
       <div className="grid grid-4" style={{ marginBottom: 20 }}>
         <div className="panel stat">
           <div className="stat-label">Rounds closed</div>

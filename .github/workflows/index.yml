@@ -1,0 +1,101 @@
+# The Envio index, run after every cadence and published as a snapshot.
+#
+# The self-hosted stack in indexer/docker-compose.yml comes up on a runner, indexes the six
+# contracts from the deployment block to the head, and the query /protocol prints is run against
+# it. The result goes to the live-data branch with the block it was taken at, which is what the
+# deployed app reads when no live GraphQL endpoint answers.
+#
+# The log cache the RPC front keeps (indexer/rpc-cache.mjs) travels on the same branch, so each
+# run scans only the blocks since the last one. With an ENVIO_API_TOKEN secret the indexer reads
+# HyperSync instead.
+name: index
+
+on:
+  workflow_run:
+    workflows: ["live cadence"]
+    types: [completed]
+  workflow_dispatch:
+  schedule:
+    - cron: "41 */12 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-data
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: The live-data branch
+        run: |
+          if git ls-remote --exit-code --heads origin live-data >/dev/null; then
+            git fetch --depth 1 origin live-data
+            git worktree add data origin/live-data
+            git -C data checkout -B live-data
+          else
+            git worktree add --orphan -b live-data data
+          fi
+          mkdir -p data/indexer
+          [ -f data/indexer/rpc-cache.json ] && cp data/indexer/rpc-cache.json indexer/rpc-cache.json || true
+
+      - name: Bring the indexer up
+        working-directory: indexer
+        env:
+          ENVIO_API_TOKEN: ${{ secrets.ENVIO_API_TOKEN }}
+        run: |
+          if [ -n "$ENVIO_API_TOKEN" ]; then export ENVIO_CONFIG=config.hypersync.yaml; fi
+          docker compose up -d
+
+      - name: Wait until it has reached the head
+        run: |
+          q() { curl -s http://localhost:8080/v1/graphql -H 'x-hasura-admin-secret: backstop' \
+                  -H 'content-type: application/json' -d "{\"query\":\"$1\"}"; }
+          head=$(curl -s -X POST https://testnet-rpc.monad.xyz -H 'content-type: application/json' \
+                  -d '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' | jq -r .result)
+          head=$((head))
+          for i in $(seq 1 1000); do
+            at=$(q '{ chain_metadata { latest_processed_block } }' | jq -r '.data.chain_metadata[0].latest_processed_block // 0' 2>/dev/null || echo 0)
+            echo "processed $at of $head"
+            [ "${at:-0}" -ge $((head - 20)) ] && exit 0
+            sleep 5
+          done
+          docker compose -f indexer/docker-compose.yml logs indexer --tail 60
+          exit 1
+
+      - name: Take the snapshot
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # The query is read out of the app's source, so the snapshot answers exactly the
+          # document /protocol prints.
+          query=$(node -e '
+            const s = require("fs").readFileSync("apps/web/lib/indexer.ts", "utf8");
+            const m = /export const INDEX_QUERY = `([\s\S]*?)`;/.exec(s);
+            process.stdout.write(JSON.stringify(m[1]));')
+          curl -s http://localhost:8080/v1/graphql -H 'x-hasura-admin-secret: backstop' \
+            -H 'content-type: application/json' -d "{\"query\":$query}" > result.json
+          jq -e '.data' result.json >/dev/null
+          block=$(curl -s http://localhost:8080/v1/graphql -H 'x-hasura-admin-secret: backstop' \
+            -H 'content-type: application/json' -d '{"query":"{ chain_metadata { latest_processed_block } }"}' \
+            | jq -r '.data.chain_metadata[0].latest_processed_block')
+          jq --argjson block "$block" --arg run "$RUN_URL" --argjson query "$query" \
+            '{takenAt: now | floor, block: $block, run: $run, query: $query, data: .data}' result.json \
+            > data/indexer/snapshot.json
+          cp indexer/rpc-cache.json data/indexer/rpc-cache.json 2>/dev/null || true
+          jq '.data.ProtocolIndex' data/indexer/snapshot.json
+
+      - name: Publish
+        run: |
+          cd data
+          git config user.name "backstop-cadence"
+          git config user.email "backstop-cadence@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Index at block $(jq .block indexer/snapshot.json)"
+          git push origin live-data

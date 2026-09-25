@@ -72,22 +72,8 @@ chains:
     # The block the six contracts were deployed in. Starting at genesis would scan 60 million
     # blocks to reach the first event that matters.
     start_block: 60253947
-    # RPC as the data source, so the indexer runs with no account anywhere. HyperSync is
-    # faster and is a one-line swap once an Envio API token is set (config.hypersync.yaml).
-    #
-    # The backfill needs archive logs from the deployment block. Monad's own public endpoint
-    # caps eth_getLogs at a 100-block range, and every free endpoint answers a concurrent
-    # backfill with 429s. So the sync RPC is `rpc-cache.mjs`, a service in docker-compose.yml
-    # that scans the six contracts' logs once, sequentially, keeps them with a watermark, and
-    # answers eth_getLogs over any range from that file. The range ceiling is wide because the
-    # answer comes from memory. A later run scans only the blocks after the watermark.
-    rpc:
-      - url: http://rpc-cache:8545
-        for: sync
-        initial_block_interval: 250000
-        interval_ceiling: 250000
-        acceleration_additive: 0
-        backoff_millis: 2000
+    # HyperSync as the data source. Selected with ENVIO_CONFIG=config.hypersync.yaml and an
+    # ENVIO_API_TOKEN; everything else is identical to config.yaml.
     contracts:
       - name: AttestationRegistry
         address:

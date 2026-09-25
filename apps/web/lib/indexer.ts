@@ -12,10 +12,17 @@
  * reach it: the default endpoint is on the reader's own machine. Fetching client-side means a
  * judge who brings the indexer up locally sees their own index on the deployed site.
  *
- * Either way the page degrades rather than breaks: every reader here returns null on failure.
+ * When no indexer answers there, the page reads the snapshot the scheduled index job publishes:
+ * the same query, run by the same self-hosted indexer on a GitHub runner after each audit round,
+ * written to the live-data branch with the block it was taken at. Either way the page degrades
+ * rather than breaks: every reader here returns null on failure.
  */
 export const INDEXER_URL =
   process.env.NEXT_PUBLIC_INDEXER_URL ?? "http://localhost:8080/v1/graphql";
+
+export const SNAPSHOT_URL =
+  process.env.NEXT_PUBLIC_INDEX_SNAPSHOT_URL ??
+  "https://raw.githubusercontent.com/Marc-Dvci/BACKSTOP/live-data/indexer/snapshot.json";
 
 /** How long to wait before deciding the indexer is not there. */
 const TIMEOUT_MS = 2500;
@@ -99,6 +106,33 @@ export interface IndexedView {
   protocol: IndexedProtocol | null;
   endpoints: IndexedEndpoint[];
   policies: IndexedPolicy[];
+  source:
+    | { kind: "live"; url: string }
+    | { kind: "snapshot"; url: string; takenAt: number; block: number; run: string | null };
+}
+
+interface IndexData {
+  ProtocolIndex: IndexedProtocol[];
+  Endpoint: IndexedEndpoint[];
+  Policy: IndexedPolicy[];
+}
+
+interface Snapshot {
+  takenAt: number;
+  block: number;
+  run: string | null;
+  query: string;
+  data: IndexData;
+}
+
+async function readSnapshot(): Promise<Snapshot | null> {
+  try {
+    const res = await fetch(SNAPSHOT_URL, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as Snapshot;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -161,15 +195,21 @@ export const INDEX_QUERY = `query BackstopIndex {
 }`;
 
 export async function readIndex(): Promise<IndexedView | null> {
-  const data = await gql<{
-    ProtocolIndex: IndexedProtocol[];
-    Endpoint: IndexedEndpoint[];
-    Policy: IndexedPolicy[];
-  }>(INDEX_QUERY);
-  if (!data) return null;
+  const live = await gql<IndexData>(INDEX_QUERY);
+  if (live) {
+    return {
+      protocol: live.ProtocolIndex[0] ?? null,
+      endpoints: live.Endpoint ?? [],
+      policies: live.Policy ?? [],
+      source: { kind: "live", url: INDEXER_URL },
+    };
+  }
+  const snap = await readSnapshot();
+  if (!snap) return null;
   return {
-    protocol: data.ProtocolIndex[0] ?? null,
-    endpoints: data.Endpoint ?? [],
-    policies: data.Policy ?? [],
+    protocol: snap.data.ProtocolIndex[0] ?? null,
+    endpoints: snap.data.Endpoint ?? [],
+    policies: snap.data.Policy ?? [],
+    source: { kind: "snapshot", url: SNAPSHOT_URL, takenAt: snap.takenAt, block: snap.block, run: snap.run },
   };
 }
