@@ -20,8 +20,11 @@ const CONTRACTS: { label: string; key: keyof ReturnType<typeof deployment> }[] =
 export default async function JudgesPage() {
   const d = deployment();
   const endpoints = await getEndpoints();
-  const crossed = endpoints.find((e) => e.versionLogRay >= e.boundaryRay && e.boundaryRay > 0n);
-  const control = endpoints.find((e) => e.settlementEligible && e !== crossed);
+  // Versions audited from real completions come first: their crossing is the stronger evidence.
+  const hasCrossed = (e: (typeof endpoints)[number]) => e.boundaryRay > 0n && e.versionLogRay >= e.boundaryRay;
+  const ordered = [...endpoints.filter((e) => e.attestationUrl), ...endpoints.filter((e) => !e.attestationUrl)];
+  const crossed = ordered.find(hasCrossed);
+  const control = ordered.find((e) => e.settlementEligible && e.status === 1 && !hasCrossed(e));
 
   return (
     <div style={{ padding: "36px 0" }}>
@@ -102,11 +105,19 @@ make test        # 64 contract tests, 7 invariants, the differential suite
 make ci-audit    # the CLI catching a substitution, no chain and no key needed
 make demo        # the whole protocol end to end on a local chain
 make gate-zero   # the lifetime Type-I bound, measured
-make replay      # recompute a verdict published on this testnet, from its record
+make replay-live # recompute the live crossing from its published record alone
+make replay      # recompute a seeded verdict, checked against the AuditRegistry
 make indexer     # the self-hosted index over this deployment, GraphQL on :8080`}</code>
           </pre>
           <p>
-            <code>make replay</code> is the one to run if you only run one. It exports the round
+            <code>make replay-live</code> is the one to run if you only run one. It downloads the
+            record of the round at which version {crossed?.versionId ?? 6} crossed, served by
+            llama.cpp, and recomputes E(t) from it with no pool file, no key and no chain access.{" "}
+            <code>node scripts/live/verify-transcripts.mjs --version 6 --round 5</code> then checks
+            that the 768 transcripts hash to the root sealed on chain and reproduce every count.
+          </p>
+          <p>
+            <code>make replay</code> exports the seeded round
             that crossed on this testnet, refuses to write unless the E(t) it recomputes equals
             the one the AuditRegistry holds, and then checks the seed chain, the cell selection
             and every Merkle proof in the revealed calibration slice against the pool root fixed
