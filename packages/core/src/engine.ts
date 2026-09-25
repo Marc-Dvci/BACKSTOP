@@ -86,8 +86,8 @@ export interface EngineParams {
  */
 export class PoolCache {
   private readonly references = new Map<string, Distribution>();
-  private readonly blockStats = new Map<string, bigint[]>();
   private readonly schedules = new Map<string, number[][]>();
+  private readonly sliceStats = new Map<string, bigint>();
 
   constructor(
     private readonly pool: ReferencePool,
@@ -106,19 +106,6 @@ export class PoolCache {
     return r;
   }
 
-  /** S0(c,j,i) for every block of the calibration partition. */
-  private stats(elementId: string, cellId: string): bigint[] {
-    const key = `${elementId}|${cellId}`;
-    let s = this.blockStats.get(key);
-    if (!s) {
-      const cell = findCell(this.pool, elementId, cellId);
-      const reference = this.reference(elementId, cellId);
-      s = cell.calibration.map((block) => jsd(empirical(block), reference));
-      this.blockStats.set(key, s);
-    }
-    return s;
-  }
-
   private schedule(elementId: string, cellId: string): number[][] {
     const key = `${elementId}|${cellId}`;
     let sc = this.schedules.get(key);
@@ -129,14 +116,26 @@ export class PoolCache {
     return sc;
   }
 
-  /** The m calibration statistics round `t` consumes, disjoint from every earlier round. */
+  /**
+   * The m calibration statistics round `t` consumes, disjoint from every earlier round.
+   *
+   * A pool issued for a long lifetime holds m * T_max blocks per (element, cell) and a round
+   * reads m of them, so S0(c,j,i) is computed for the slice alone and memoised per block.
+   */
   calibrationSlice(elementId: string, cellId: string, round: number): bigint[] {
     const slice = this.schedule(elementId, cellId)[round];
     if (!slice) throw new Error(`round ${round} is outside the committed slice schedule`);
-    const all = this.stats(elementId, cellId);
+    const cell = findCell(this.pool, elementId, cellId);
+    const reference = this.reference(elementId, cellId);
     return slice.map((i) => {
-      const v = all[i];
-      if (v === undefined) throw new Error(`calibration block ${i} missing from the pool`);
+      const key = `${elementId}|${cellId}|${i}`;
+      let v = this.sliceStats.get(key);
+      if (v === undefined) {
+        const block = cell.calibration[i];
+        if (block === undefined) throw new Error(`calibration block ${i} missing from the pool`);
+        v = jsd(empirical(block), reference);
+        this.sliceStats.set(key, v);
+      }
       return v;
     });
   }

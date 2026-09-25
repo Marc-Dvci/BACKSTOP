@@ -87,8 +87,50 @@ export interface ReplayContext {
   referencePoolRoot: Hex;
   cellIds: string[];
   cellsPerRound: number;
-  pool: ReferencePool;
+  /**
+   * The full reference pool, when the replaying party holds it. Omitted, the pool is rebuilt
+   * from the record's revealed material alone, so the verdict is recomputed from exactly the
+   * fingerprints and calibration blocks whose Merkle proofs were checked above.
+   */
+  pool?: ReferencePool;
   params: EngineParams;
+}
+
+/**
+ * The part of the reference pool one round revealed, as a pool the engine can evaluate.
+ *
+ * Calibration arrays are sparse: only the blocks the round's slice schedule names are present.
+ * The engine reads nothing else, and a block the schedule names but the record omits makes the
+ * evaluation fail rather than read as zero.
+ */
+export function poolFromRecord(
+  record: Pick<RoundRecord, "attestationVersion" | "revealedFingerprints" | "revealedBlocks">,
+  shape: { n: number; nR: number; m: number; tMax: number },
+): ReferencePool {
+  const cells = new Map<string, ReferencePool["cells"][number]>();
+  for (const f of record.revealedFingerprints) {
+    cells.set(`${f.elementId}|${f.cellId}`, {
+      elementId: f.elementId,
+      cellId: f.cellId,
+      fingerprint: f.counts,
+      calibration: new Array<Counts>(shape.m * shape.tMax),
+    });
+  }
+  for (const b of record.revealedBlocks) {
+    const cell = cells.get(`${b.elementId}|${b.cellId}`);
+    if (!cell) throw new Error(`block for (${b.elementId}, ${b.cellId}) has no revealed fingerprint`);
+    (cell.calibration as Counts[])[b.blockIndex] = b.counts;
+  }
+  const first = record.revealedFingerprints[0];
+  return {
+    attestationVersion: record.attestationVersion,
+    alphabetSize: first ? first.counts.length : 0,
+    n: shape.n,
+    nR: shape.nR,
+    m: shape.m,
+    tMax: shape.tMax,
+    cells: [...cells.values()],
+  };
 }
 
 export function replayRound(record: RoundRecord, ctx: ReplayContext): ReplayResult {
@@ -137,7 +179,10 @@ export function replayRound(record: RoundRecord, ctx: ReplayContext): ReplayResu
     }
   }
 
-  const recomputed = evaluateRound(record.round, record.observations, ctx.pool, ctx.params);
+  const pool =
+    ctx.pool ??
+    poolFromRecord(record, { n: 0, nR: 0, m: ctx.params.m, tMax: ctx.params.tMax });
+  const recomputed = evaluateRound(record.round, record.observations, pool, ctx.params);
   const publishedE = BigInt(record.verdict.eRoundRay);
   if (publishedE !== recomputed.eRoundRay) {
     findings.push({

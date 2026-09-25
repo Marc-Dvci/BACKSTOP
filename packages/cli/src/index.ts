@@ -67,7 +67,7 @@ function usage(): never {
 
   backstop audit    --attestation <file> --pool <file> [--base-url <url>] [--model <slug>]
                     [--rounds <n>] [--draws <n>] [--api-key-env <VAR>] [--json <out>]
-  backstop replay   --record <file> --attestation <file> --pool <file>
+  backstop replay   --record <file> --attestation <file> [--pool <file>]
   backstop index    [--rpc <url>] [--chain <id>] [--version <id>]
   backstop quote    --notional <usd> --term-days <n> [--alpha <a>] [--power <p>] [--delay <rounds>]
   backstop vectors  [--json <out>]
@@ -246,12 +246,15 @@ async function cmdAudit(): Promise<never> {
 function cmdReplay(): never {
   const recordPath = flag("record");
   const attestationPath = flag("attestation");
+  // Without --pool the verdict is recomputed from the record's revealed material alone: the
+  // fingerprints and calibration blocks whose proofs against the committed root are checked
+  // below are the only reference data the recomputation reads.
   const poolPath = flag("pool");
-  if (!recordPath || !attestationPath || !poolPath) usage();
+  if (!recordPath || !attestationPath) usage();
 
   const record = JSON.parse(readFileSync(recordPath, "utf8")) as RoundRecord;
   const cfg = loadConfig(attestationPath);
-  const pool = loadPool(poolPath);
+  const pool = poolPath ? loadPool(poolPath) : undefined;
 
   const ctx: ReplayContext = {
     seedChainRoot: cfg.seedChainRoot,
@@ -272,6 +275,13 @@ function cmdReplay(): never {
   const result = replayRound(record, ctx);
 
   console.log(c.bold(`\nBACKSTOP replay  round ${result.round}\n`));
+  console.log(
+    c.dim(
+      pool
+        ? `  reference data  the full pool at ${poolPath}\n`
+        : `  reference data  the record's revealed slice alone, ${record.revealedBlocks.length} blocks with proofs\n`,
+    ),
+  );
   const check = (name: string, ok: boolean) =>
     console.log(`  ${ok ? c.green("ok  ") : c.red("FAIL")}  ${name}`);
   check("issuer seed share hashes forward to the committed chain root", result.checks.seedChain);
