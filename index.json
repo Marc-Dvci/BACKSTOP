@@ -1,0 +1,199 @@
+{
+  "versions": {
+    "5": {
+      "key": "live",
+      "label": "qwen3-1.7b, llama.cpp CPU, live",
+      "rounds": [
+        {
+          "round": 0,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790321335,
+          "drandRound": 32505949,
+          "eRound": 1.154417441649085,
+          "logM": 0.1435958372070155,
+          "verdict": "elevated",
+          "completions": 768,
+          "voided": 0,
+          "record": "v5/round-0.json",
+          "transcripts": "v5/transcripts-0.json.gz"
+        },
+        {
+          "round": 1,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790322380,
+          "drandRound": 32506295,
+          "eRound": 0.8520013045607713,
+          "logM": -0.016571383772363953,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v5/round-1.json",
+          "transcripts": "v5/transcripts-1.json.gz"
+        },
+        {
+          "round": 2,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790322544,
+          "drandRound": 32506356,
+          "eRound": 0.9757897673978454,
+          "logM": -0.04107950180011253,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v5/round-2.json",
+          "transcripts": "v5/transcripts-2.json.gz"
+        },
+        {
+          "round": 3,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790322709,
+          "drandRound": 32506410,
+          "eRound": 0.7166640487030878,
+          "logM": -0.3742276013077585,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v5/round-3.json",
+          "transcripts": "v5/transcripts-3.json.gz"
+        },
+        {
+          "round": 4,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790322876,
+          "drandRound": 32506467,
+          "eRound": 0.8995253803625568,
+          "logM": -0.4801156112189337,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v5/round-4.json",
+          "transcripts": "v5/transcripts-4.json.gz"
+        },
+        {
+          "round": 5,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790323046,
+          "drandRound": 32506523,
+          "eRound": 1.1785978902537402,
+          "logM": -0.3157901078432005,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v5/round-5.json",
+          "transcripts": "v5/transcripts-5.json.gz"
+        },
+        {
+          "round": 6,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790323232,
+          "drandRound": 32506582,
+          "eRound": 0.766387105219866,
+          "logM": -0.581857985440886,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v5/round-6.json",
+          "transcripts": "v5/transcripts-6.json.gz"
+        }
+      ]
+    },
+    "6": {
+      "key": "switched",
+      "label": "qwen3-1.7b, llama.cpp CPU, switches to Q4_K_M",
+      "rounds": [
+        {
+          "round": 0,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790321514,
+          "drandRound": 32506016,
+          "eRound": 0.5991385449273899,
+          "logM": -0.5122624139091326,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v6/round-0.json",
+          "transcripts": "v6/transcripts-0.json.gz"
+        },
+        {
+          "round": 1,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790321651,
+          "drandRound": 32506059,
+          "eRound": 0.876284870823466,
+          "logM": -0.6443264598153564,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v6/round-1.json",
+          "transcripts": "v6/transcripts-1.json.gz"
+        },
+        {
+          "round": 2,
+          "served": "q8_0",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790321791,
+          "drandRound": 32506107,
+          "eRound": 1.1823232885857702,
+          "logM": -0.47684506842660096,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v6/round-2.json",
+          "transcripts": "v6/transcripts-2.json.gz"
+        },
+        {
+          "round": 3,
+          "served": "q4km",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790321915,
+          "drandRound": 32506157,
+          "eRound": 3.559598871684447,
+          "logM": 0.7928027935957324,
+          "verdict": "consistent",
+          "completions": 768,
+          "voided": 0,
+          "record": "v6/round-3.json",
+          "transcripts": "v6/transcripts-3.json.gz"
+        },
+        {
+          "round": 4,
+          "served": "q4km",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790322020,
+          "drandRound": 32506194,
+          "eRound": 3.7482434679074297,
+          "logM": 2.114090115282475,
+          "verdict": "warning",
+          "completions": 768,
+          "voided": 0,
+          "record": "v6/round-4.json",
+          "transcripts": "v6/transcripts-4.json.gz"
+        },
+        {
+          "round": 5,
+          "served": "q4km",
+          "host": "issuer workstation, Windows 11, Ryzen 5 7600",
+          "closedAt": 1790322119,
+          "drandRound": 32506228,
+          "eRound": 2.7429325039732833,
+          "logM": 3.123117720290382,
+          "verdict": "crossed",
+          "completions": 768,
+          "voided": 0,
+          "record": "v6/round-5.json",
+          "transcripts": "v6/transcripts-5.json.gz"
+        }
+      ]
+    }
+  },
+  "updatedAt": 1790323233
+}
