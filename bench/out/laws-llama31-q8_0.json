@@ -1,0 +1,362 @@
+{
+  "model": "Llama-3.1-8B-Instruct",
+  "source": "unsloth/Llama-3.1-8B-Instruct-GGUF, bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+  "engine": "llama.cpp 88a0aaa CUDA, RTX 4070",
+  "probeSeed": "0x1111111111111111111111111111111111111111111111111111111111111111",
+  "drawsPerCell": 20000,
+  "sampling": {
+    "temperature": 1,
+    "topP": 1,
+    "maxTokens": 24,
+    "extraBody": {}
+  },
+  "samplingContractHash": "0x62db83990955f8e38589652ebbbd42e51187c2dc235d8fda1006e4e17042ab63",
+  "cells": [
+    {
+      "id": "digit.en",
+      "task": "digit",
+      "language": "en",
+      "alphabet": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    {
+      "id": "digit.fr",
+      "task": "digit",
+      "language": "fr",
+      "alphabet": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    {
+      "id": "digit.es",
+      "task": "digit",
+      "language": "es",
+      "alphabet": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    {
+      "id": "digit.zh",
+      "task": "digit",
+      "language": "zh",
+      "alphabet": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    {
+      "id": "letter.en",
+      "task": "letter",
+      "language": "en",
+      "alphabet": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h"
+      ]
+    },
+    {
+      "id": "letter.fr",
+      "task": "letter",
+      "language": "fr",
+      "alphabet": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h"
+      ]
+    },
+    {
+      "id": "letter.es",
+      "task": "letter",
+      "language": "es",
+      "alphabet": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h"
+      ]
+    },
+    {
+      "id": "letter.zh",
+      "task": "letter",
+      "language": "zh",
+      "alphabet": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h"
+      ]
+    }
+  ],
+  "configs": {
+    "q8_0": {
+      "precision": "Q8_0",
+      "label": "declared envelope element",
+      "engine": "llama.cpp 88a0aaa CUDA, RTX 4070",
+      "cells": {
+        "digit.en": {
+          "alphabet": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            366,
+            346,
+            7974,
+            0,
+            4604,
+            6710,
+            0
+          ],
+          "unmatched": 0,
+          "executed": 20000
+        },
+        "digit.fr": {
+          "alphabet": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "counts": [
+            0,
+            17,
+            155,
+            922,
+            571,
+            6551,
+            947,
+            6860,
+            3950,
+            27
+          ],
+          "unmatched": 0,
+          "executed": 20000
+        },
+        "digit.es": {
+          "alphabet": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "counts": [
+            0,
+            0,
+            399,
+            1823,
+            737,
+            7021,
+            241,
+            4165,
+            5614,
+            0
+          ],
+          "unmatched": 0,
+          "executed": 20000
+        },
+        "digit.zh": {
+          "alphabet": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "counts": [
+            0,
+            0,
+            235,
+            1489,
+            1356,
+            6188,
+            740,
+            5640,
+            4352,
+            0
+          ],
+          "unmatched": 0,
+          "executed": 20000
+        },
+        "letter.en": {
+          "alphabet": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h"
+          ],
+          "counts": [
+            2179,
+            697,
+            1096,
+            2891,
+            4459,
+            4327,
+            4351,
+            0
+          ],
+          "unmatched": 0,
+          "executed": 20000
+        },
+        "letter.fr": {
+          "alphabet": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h"
+          ],
+          "counts": [
+            329,
+            836,
+            2695,
+            1717,
+            7800,
+            3711,
+            2337,
+            33
+          ],
+          "unmatched": 542,
+          "executed": 20000
+        },
+        "letter.es": {
+          "alphabet": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h"
+          ],
+          "counts": [
+            2987,
+            716,
+            1523,
+            2089,
+            6147,
+            2181,
+            2032,
+            65
+          ],
+          "unmatched": 2260,
+          "executed": 20000
+        },
+        "letter.zh": {
+          "alphabet": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h"
+          ],
+          "counts": [
+            1024,
+            2052,
+            3188,
+            5537,
+            3947,
+            2217,
+            1964,
+            71
+          ],
+          "unmatched": 0,
+          "executed": 20000
+        }
+      }
+    }
+  },
+  "generatedAt": 1790286035
+}
