@@ -54,15 +54,15 @@ jobs:
 
       - name: Wait until it has reached the head
         run: |
-          q() { curl -s http://localhost:8080/v1/graphql -H 'x-hasura-admin-secret: backstop' \
-                  -H 'content-type: application/json' -d "{\"query\":\"$1\"}"; }
-          head=$(curl -s -X POST https://testnet-rpc.monad.xyz -H 'content-type: application/json' \
-                  -d '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' | jq -r .result)
-          head=$((head))
-          for i in $(seq 1 1000); do
-            at=$(q '{ chain_metadata { latest_processed_block } }' | jq -r '.data.chain_metadata[0].latest_processed_block // 0' 2>/dev/null || echo 0)
-            echo "processed $at of $head"
-            [ "${at:-0}" -ge $((head - 20)) ] && exit 0
+          # The indexer reports both the chain head it sees and the block it has processed.
+          for i in $(seq 1 700); do
+            meta=$(curl -s -m 10 http://localhost:8080/v1/graphql -H 'x-hasura-admin-secret: backstop' \
+                    -H 'content-type: application/json' \
+                    -d '{"query":"{ chain_metadata { latest_processed_block block_height } }"}' || true)
+            at=$(echo "$meta" | jq -r '.data.chain_metadata[0].latest_processed_block // 0' 2>/dev/null || echo 0)
+            head=$(echo "$meta" | jq -r '.data.chain_metadata[0].block_height // 0' 2>/dev/null || echo 0)
+            echo "processed ${at:-0} of ${head:-0}"
+            if [ "${head:-0}" -gt 0 ] && [ "${at:-0}" -ge $(( ${head:-0} - 20 )) ]; then exit 0; fi
             sleep 5
           done
           docker compose -f indexer/docker-compose.yml logs indexer --tail 60
