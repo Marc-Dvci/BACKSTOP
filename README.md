@@ -39,8 +39,8 @@ guarantee, so the cost of covering an endpoint becomes a public statement about 
 trusted.
 
 > Black-box detection of model substitution is practical. Economic consequence is missing.
-> BACKSTOP measures every public endpoint without permission, and pays out on the endpoints
-> characterised well enough to underwrite.
+> BACKSTOP measures any OpenAI-compatible endpoint without permission, and pays out on the
+> endpoints characterised well enough to underwrite.
 
 ---
 
@@ -48,6 +48,66 @@ trusted.
 
 Every number here is produced by the code in this repository. Each row names the script that
 regenerates it.
+
+### Caught on Monad testnet, from real completions
+
+Two versions attest Qwen3-1.7B on Monad testnet with the same envelope. Each round, llama.cpp
+serves the model, the round's committed probes go to it one request each, and the issuer opens,
+seals and closes the round on chain: the seed from its hash chain and a drand quicknet value, the
+transcript root before the verdict, then E(t).
+
+| Version | The endpoint served | Rounds | log M | Result |
+|---|---|---:|---:|---|
+| [v5](https://backstop-smoky.vercel.app/endpoint/5) | Q8_0, a declared element of the envelope | 7 | −0.5818 | **consistent** |
+| [v6](https://backstop-smoky.vercel.app/endpoint/6) | Q8_0 for rounds 0 to 2, **Q4_K_M from round 3** | 6 | 3.1231 | **crossed at round 5** |
+
+On v6 the three Q8_0 rounds read E(t) = 0.60, 0.88 and 1.18. The three Q4_K_M rounds read 3.56,
+3.75 and 2.74, and log M passed ln(1/α) = 2.9957, fixed before round 0, on the third. Three
+policies written on v6 before its first round, 105,000 bUSDC of notional authorised by passkey
+assertions through the P256 precompile, settled at that round in
+[one transaction](https://testnet.monadexplorer.com/tx/0xa71f6ff2de31b210b4b7aa8a6e7d48ac68c72040f38900357949751869dc7542)
+of 641,142 gas. The testnet deployment runs a 10-minute challenge window.
+
+A round is 768 completions, 8 cells of 96, and took 97 seconds on a six-core desktop CPU. Every
+round is published on the [`live-data`](https://github.com/Marc-Dvci/BACKSTOP/tree/live-data)
+branch as a record and its transcripts, request and response byte for byte, and checks with
+nothing but the repository:
+
+```bash
+make replay-live                                   # the v6 crossing, from its record alone
+node scripts/live/verify-transcripts.mjs --version 6 --round 5
+```
+
+```
+  ok    issuer seed share hashes forward to the committed chain root
+  ok    round seed is the combination of both shares
+  ok    cell selection derives from the seed
+  ok    fingerprint partitions prove against the committed pool root
+  ok    calibration slice proves against the committed pool root
+  ok    published E(t) matches the recomputation      E(t) = 2.74293250
+
+  ok    every commitment is the hash of its request and response bytes
+  ok    their Merkle root is the transcript root sealed on Monad
+  ok    normalising the responses reproduces every cell's counts
+```
+
+The reference pool, the seed chain and the probe corpus derive from issuer secrets. Only their
+roots are on chain at issuance, and each round's share of them is published after that round
+seals. Each record names the host that served it. `.github/workflows/live.yml` runs the same
+round on a GitHub runner on a daily schedule.
+
+### The envelope declares the stack the endpoint runs
+
+The same Q8_0 weights on llama.cpp's CPU backend answer measurably differently from the GPU build
+the reference was first measured on. So the stack was measured where it runs, 20,000 draws per
+cell on GitHub's runners (`.github/workflows/measure-stack.yml`), and declared as its own element
+of the envelope.
+
+| Mean JSD over 8 cells | |
+|---|---:|
+| Q8_0 GPU against BF16 GPU, the permitted width | 0.002423 |
+| Q8_0 CPU against Q8_0 GPU | 0.001043 |
+| Q4_K_M against Q8_0 CPU, the substitution | 0.034965 |
 
 ### The lifetime Type-I bound
 
@@ -360,7 +420,9 @@ Monad testnet, chain 10143.
 | `Settlement` | [`0x9d34…082B`](https://testnet.monadexplorer.com/address/0x9d344c625D7D62FA43ebc97528213B666893082B) |
 | `TicketRegistry` | [`0xa91E…41C3`](https://testnet.monadexplorer.com/address/0xa91Ee747C648c8a6f9418FaB1C21b7f00DC441C3) |
 | Settlement asset | [`0x29B3…4b50`](https://testnet.monadexplorer.com/address/0x29B33CB36D32Adf164784BdFdA40d034DD234b50) |
-| ERC-8004 auditor | **agentId 1824** in the [Identity Registry](https://testnet.monadexplorer.com/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) |
+| ERC-8004 auditor | **agentId 1824** in the [Identity Registry](https://testnet.monadexplorer.com/address/0x8004A818BFB912233c491871b3d84c89A494BD9e), agentWallet `0x6a7a…870b` |
+| ERC-8004 provider | **agentId 1927**, the endpoint the live cadence audits, [card](https://backstop-smoky.vercel.app/providers/backstop-reference.json) |
+| Live versions | v5 and v6, attestations in [`attestations/`](attestations) |
 
 The settlement asset is freely mintable on testnet, so a judge can fund a wallet and drive the
 whole flow without asking anyone for tokens.
@@ -401,7 +463,8 @@ make indexer       # the self-hosted index over the testnet deployment, GraphQL 
 
 ### Recompute a published verdict yourself
 
-`make replay` exports the round that crossed on Monad testnet and then recomputes it. The
+`make replay-live` downloads a round the live cadence published and recomputes it with the CLI
+from the record alone, with no pool file, no key and no chain access. `make replay` exports the round that crossed on Monad testnet and then recomputes it. The
 exporter refuses to write unless the E(t) it recomputes equals the one the AuditRegistry holds,
 so the record it produces is the round the issuer actually closed, not a reconstruction of one.
 The CLI then checks it end to end:
@@ -517,6 +580,12 @@ await backstop.redeem(policyId, crossingRound);
 
 ## Who this is for
 
+**Why a team uses this rather than writing its own check.** Four parts take the time: a test that
+stays valid when an endpoint moves between permitted configurations, a reference measured on
+weights the auditor holds, a calibration pool whose slices are revealed only after each round, and
+a verdict a third party can recompute. The CLI brings all four to one command, and the Action
+brings it to a pull request.
+
 **Research and evaluation teams.** Results are invalidated when the served model changes
 underneath them. Serving backends shift benchmark scores by up to 16.6 percentage points, and a
 NeurIPS 2025 paper on reasoning-model illegibility had its findings overturned when different
@@ -581,9 +650,9 @@ and financial consequence in one stack.
 
 | | How it is used |
 |---|---|
-| **Monad** | P256 precompile for the WebAuthn ceremony, 30M-gas transactions for onchain adjudication and batch settlement, ERC-8004 for issuer and auditor reputation |
+| **Monad** | P256 precompile for the WebAuthn ceremony, 30M-gas transactions for onchain adjudication and batch settlement. ERC-8004: the auditor (agentId 1824) declares the cadence's issuer as its `agentWallet`, and after every live round that wallet writes −log M to the Reputation Registry against the provider's agent (1927), with the record's URI and keccak256 hash. 13 entries so far |
 | **Chainlink CRE** | The audit cadence as a workflow: Monad reads and writes, the drand beacon, the evidence producer's published bundle, and the e-process engine running unmodified inside the QuickJS sandbox, in the order the statistics require. The three round transitions arrive onchain as a signed report through `CREReceiver`, which is the version's issuer. It type-checks against `@chainlink/cre-sdk@1.21.0` on every push, and `CREReceiver` carries 11 Foundry tests over the metadata layout the forwarder packs. `cre/` |
-| **Envio** | HyperIndex over all six contracts, self-hosted with no account: `cd indexer && docker compose up` backfills from the deployment block and serves GraphQL on :8080. Derived entities rather than an event mirror: distance to boundary, realised detection delay, void rate against the declared breaker, collateralisation, loss ratio. The app consumes it at [/protocol](https://backstop-smoky.vercel.app/protocol). `indexer/` |
+| **Envio** | HyperIndex over all six contracts, self-hosted with no account: `cd indexer && docker compose up` backfills from the deployment block and serves GraphQL on :8080. Derived entities: distance to boundary, realised detection delay, void rate against the declared breaker, collateralisation, loss ratio. The backfill reads through `indexer/rpc-cache.mjs`, which scans the contracts' logs once and serves eth_getLogs over any range, so 5.2 million blocks index in under 15 seconds. `.github/workflows/index.yml` runs the stack after each cadence and publishes the query's result, which [/protocol](https://backstop-smoky.vercel.app/protocol) reads when no live GraphQL endpoint answers. `config.hypersync.yaml` switches it to HyperSync |
 | **Dynamic** | The signer for every transaction the product sends, not a login button beside one. `useWallet()` resolves to a Dynamic wallet, so a buyer who signed in with an email pays the premium and receives the payout from an embedded wallet that injects nothing into the page. An external wallet takes the same path. `apps/web/components/Providers.tsx`, `DynamicWallet.tsx`, `wallet.tsx` |
 | **Mera** | One passkey, three namespaces, none of them a wallet: an encrypted claim vault recoverable on any device with nothing stored, a deterministic per-policy blinding factor for reproducible commitments, and a transcript-sealing key for evidence producers. `packages/sdk/src/prf.ts`, [live](https://backstop-smoky.vercel.app/vault) |
 
@@ -612,4 +681,9 @@ pinned by commit. `Photen/IRIS-audit` is PolyForm Noncommercial 1.0.0 for code a
 data; **no IRIS code or data enters this repository**, and IRIS-described methods are reimplemented
 from the paper text and cited. See `NOTICE`.
 
-Built solo for Monad Metropolis by [Marc Donovici](https://github.com/Marc-Dvci).
+Built solo for Monad Metropolis by [Marc Donovici](https://github.com/Marc-Dvci). I audit
+information systems, payment systems and AI governance at Crédit Mutuel Alliance Fédérale's
+Inspection Générale, and I lead AI for the Internal Audit function. One of my missions covered the
+group's own AI architecture. The control I would write for inference bought from a third party is
+the one this repository implements: a supplier attestation, independent testing against it, and
+capital behind the result.
