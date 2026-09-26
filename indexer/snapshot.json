@@ -1,7 +1,7 @@
 {
-  "takenAt": 1790400365,
-  "block": 65770133,
-  "run": "https://github.com/Marc-Dvci/BACKSTOP/actions/runs/36220682980",
+  "takenAt": 1790422477,
+  "block": 65840750,
+  "run": "https://github.com/Marc-Dvci/BACKSTOP/actions/runs/36239170829",
   "query": "query BackstopIndex {\r\n  ProtocolIndex {\r\n    endpointsMeasured\r\n    endpointsSettlementEligible\r\n    endpointsCrossed\r\n    endpointsInWarning\r\n    roundsClosed\r\n    totalScheduledExecutions\r\n    totalVoidedExecutions\r\n    policiesWritten\r\n    policiesSettled\r\n    totalNotionalWritten\r\n    totalPaidOut\r\n    totalPremiumEarned\r\n    lossRatioBps\r\n    detectionDelaySum\r\n    detectionDelayCount\r\n    maxBatchSize\r\n    maxBatchGas\r\n    updatedAt\r\n  }\r\n  Endpoint(order_by: { versionId: asc }) {\r\n    id\r\n    versionId\r\n    status\r\n    settlementEligible\r\n    distanceBps\r\n    inWarningRegion\r\n    crossed\r\n    crossedAtRound\r\n    roundsClosed\r\n    scheduledTotal\r\n    voidedTotal\r\n    voidRateBps\r\n    outstandingNotional\r\n    policiesWritten\r\n    policiesSettled\r\n    totalPaidOut\r\n    totalPremiumEarned\r\n  }\r\n  Policy(order_by: { policyId: asc }) {\r\n    id\r\n    policyId\r\n    status\r\n    notional\r\n    premium\r\n    startRound\r\n    settledAtRound\r\n    detectionDelayRounds\r\n    paidOut\r\n  }\r\n}",
   "data": {
     "ProtocolIndex": [
