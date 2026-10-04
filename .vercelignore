@@ -8,6 +8,15 @@ node_modules
 dist
 **/dist
 
+# Production configuration comes from the linked Vercel project. Local signing keys,
+# reference secrets and operator checkpoints must never enter a deployment upload.
+.env*
+**/.env*
+producer-evidence
+**/*.campaign.json
+**/*.campaign.json.lock
+dist-npm
+
 # Multi-gigabyte model weights, fetched by bench/fetch-models.sh
 bench/models
 
