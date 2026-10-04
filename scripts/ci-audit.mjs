@@ -10,7 +10,7 @@
  *
  * Both directions are asserted, because a detector that fires on everything is as useless as
  * one that fires on nothing, and only the pair distinguishes them. Nothing is stubbed: the CLI
- * is the published binary, the requests carry the sampling contract the attestation pinned, the
+ * is the built workspace binary, the requests carry the sampling contract the attestation pinned, the
  * responses go through the same normalization, and the verdict comes from the same engine that
  * settles onchain. The endpoint samples from the laws the harness measured off Qwen3-1.7B
  * rather than running the model, which is what makes it affordable to run on every push.
@@ -157,6 +157,9 @@ async function leg({ serve, port, expectCrossed, label }) {
 }
 
 async function main() {
+  if (OUT !== resolve(ROOT, "docs", "results", "ci") || !OUT.startsWith(ROOT + "/") && !OUT.startsWith(ROOT + "\\")) {
+    throw new Error("refusing to clear a results directory outside this workspace");
+  }
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
 
@@ -189,7 +192,12 @@ async function main() {
   console.log(
     c.green(
       `\n  Both verdicts are the ones the envelope predicts: the attested precision stayed inside it` +
-        `\n  and the substitution was caught. ${ROUNDS * DRAWS * 8} single-token queries per leg.\n`,
+        `\n  and the substitution was caught. ` + ["bf16", "q4km"].map((serve) => {
+          const report = JSON.parse(readFileSync(resolve(OUT, `${serve}.json`), "utf8"));
+          const queries = report.rounds.reduce((total, round) => total + round.observations.reduce(
+            (sum, cell) => sum + cell.counts.reduce((count, n) => count + n, 0), 0), 0);
+          return `${serve}: ${queries} single-token queries in ${report.rounds.length} completed rounds`;
+        }).join("; ") + ".\n",
     ),
   );
   process.exit(0);

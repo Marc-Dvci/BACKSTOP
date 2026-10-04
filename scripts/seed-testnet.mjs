@@ -196,6 +196,7 @@ for (const e of CATALOGUE) {
   versionIds[e.key] = id;
   const eligible = await read(d.attestationRegistry, A.attestations, "settlementEligible", [id]);
   await write(d.coveragePool, A.pool, "setVersionEligible", [id, eligible]);
+  if (eligible) await write(d.policyRegistry, A.policies, "setMinimumPremiumRate", [id, 180]);
   console.log(`   v${id}  ${e.label.padEnd(38)} ${eligible ? c.green("settlement") : c.dim("measurement only")}`);
 }
 

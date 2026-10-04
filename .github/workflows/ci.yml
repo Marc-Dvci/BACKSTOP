@@ -16,10 +16,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @backstop/core build
-      - run: pnpm --filter @backstop/core test
-      - run: pnpm --filter @backstop/sdk build
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm test:indexer
+      - run: pnpm test:web
+      - run: pnpm test:cre
       - run: pnpm -r exec tsc --noEmit
+      - run: pnpm --filter @backstop/web build
 
   contracts:
     runs-on: ubuntu-latest
@@ -37,6 +40,23 @@ jobs:
         run: forge test --root contracts -vv
       - name: Invariants
         run: forge test --root contracts --match-contract InvariantsTest
+
+  indexer-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install the standalone indexer dependencies
+        working-directory: indexer
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Generate the event and entity types
+        working-directory: indexer
+        run: node node_modules/envio/bin.mjs codegen
+      - name: Check handlers against generated types
+        working-directory: indexer
+        run: node node_modules/typescript/bin/tsc --noEmit
 
   differential:
     runs-on: ubuntu-latest
@@ -96,6 +116,8 @@ jobs:
       - run: pnpm --filter @backstop/cli build
       - name: The attested precision must not cross, the substitution must
         run: node scripts/ci-audit.mjs --rounds 6 --draws 96
+      - name: A restarted campaign must preserve evidence and consume interrupted slices
+        run: node scripts/check-campaign-resume.mjs
       - uses: actions/upload-artifact@v7
         if: always()
         with:

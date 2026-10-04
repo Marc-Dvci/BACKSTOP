@@ -1,0 +1,50 @@
+{
+  "scenario": "Six concurrent real pages with primary RPC returning rate-limit errors",
+  "failedPrimaryRequests": 8,
+  "results": [
+    {
+      "route": "/policy/5",
+      "status": 200,
+      "expectedVisible": "SETTLED",
+      "passed": true,
+      "pageErrors": []
+    },
+    {
+      "route": "/endpoint/6",
+      "status": 200,
+      "expectedVisible": "CROSSED AT ROUND 5",
+      "passed": true,
+      "pageErrors": []
+    },
+    {
+      "route": "/",
+      "status": 200,
+      "expectedVisible": "live from Monad",
+      "passed": true,
+      "pageErrors": []
+    },
+    {
+      "route": "/endpoint/6",
+      "status": 200,
+      "expectedVisible": "CROSSED AT ROUND 5",
+      "passed": true,
+      "pageErrors": []
+    },
+    {
+      "route": "/policy/5",
+      "status": 200,
+      "expectedVisible": "SETTLED",
+      "passed": true,
+      "pageErrors": []
+    },
+    {
+      "route": "/",
+      "status": 200,
+      "expectedVisible": "live from Monad",
+      "passed": true,
+      "pageErrors": []
+    }
+  ],
+  "passed": true,
+  "scope": "Primary is a controlled local failure; successful reads use the public fallback RPC."
+}

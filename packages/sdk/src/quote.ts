@@ -9,8 +9,9 @@
  *
  *   premium  = E[loss] + capital charge + pool margin
  *
- * The false-alarm term is bounded by alpha by construction, so the lifetime budget is a
- * priced input rather than an estimate. `P(detected while eligible)` comes from the measured
+ * The false-alarm term uses the declared alpha as a modelling assumption. Its interpretation
+ * as a lifetime bound requires valid conditional e-values under the true null law, which the
+ * empirical live calibration has not established universally. `P(detected while eligible)` comes from the measured
  * power and delay curve in `docs/results/bench.json`, the seasoning length and the remaining
  * term. At launch `P(departure)` is a stated prior, and the index accumulates the realised
  * window frequency that replaces it.
@@ -63,6 +64,14 @@ export interface Quote {
 const YEAR_SECONDS = 365 * 24 * 3600;
 
 export function quote(i: QuoteInputs): Quote {
+  const probabilities = [i.alpha, i.power];
+  if (i.notional < 0n || probabilities.some((p) => !Number.isFinite(p) || p < 0 || p > 1)
+    || !Number.isFinite(i.termSeconds) || i.termSeconds <= 0
+    || !Number.isFinite(i.roundSeconds) || i.roundSeconds <= 0
+    || [i.seasoningRounds, i.tMax, i.roundsClosed ?? 0].some((n) => !Number.isSafeInteger(n) || n < 0)
+    || [i.departureRatePerYear, i.capitalChargeAnnualBps, i.poolMarginBps, i.medianDelayRounds].some((n) => !Number.isFinite(n) || n < 0)) {
+    throw new Error("invalid quote inputs");
+  }
   // A policy is exposed for the shorter of its own term and what is left of the version's
   // round cap. A version retires into a fresh one at T_max, and coverage does not carry over.
   const termRounds = Math.floor(i.termSeconds / i.roundSeconds);
@@ -86,11 +95,14 @@ export function quote(i: QuoteInputs): Quote {
   const capitalChargeBps = (i.capitalChargeAnnualBps * coveredSeconds) / YEAR_SECONDS;
 
   const rateBps = expectedLossBps + capitalChargeBps + i.poolMarginBps;
-  const premium = (i.notional * BigInt(Math.round(rateBps))) / 10000n;
+  // Never undercharge the modelled cost by rounding its rate down.
+  const roundedRateBps = Math.ceil(rateBps);
+  if (roundedRateBps > 10000) throw new Error("quote exceeds the supported premium rate");
+  const premium = (i.notional * BigInt(roundedRateBps) + 9999n) / 10000n;
 
   return {
     premium,
-    premiumRateBps: Math.round(rateBps),
+    premiumRateBps: roundedRateBps,
     components: {
       pDeparture,
       pDetectedGivenDeparture: pDetected,

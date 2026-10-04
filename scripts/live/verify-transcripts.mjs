@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const core = await import("../../packages/core/dist/index.js");
 const abis = await import("../../packages/sdk/dist/index.js");
-const { MerkleTree, hashLeaf, utf8, countResponses, CELLS } = core;
+const { MerkleTree, hashLeaf, utf8, countResponses, CELLS, digest } = core;
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -39,6 +39,14 @@ const BASE = "https://raw.githubusercontent.com/Marc-Dvci/BACKSTOP/live-data";
 const record = await fetch(`${BASE}/v${versionId}/round-${round}.json`).then((r) => r.json());
 const gz = Buffer.from(await fetch(`${BASE}/v${versionId}/transcripts-${round}.json.gz`).then((r) => r.arrayBuffer()));
 const transcripts = JSON.parse(gunzipSync(gz).toString("utf8"));
+const state = JSON.parse(readFileSync(join(ROOT, "attestations", "live.json"), "utf8"));
+const entry = Object.values(state.versions).find((v) => String(v.versionId) === String(versionId));
+if (!entry) throw new Error("requested version is not in the published live manifest");
+const config = JSON.parse(readFileSync(join(ROOT, entry.attestation), "utf8"));
+if (record.attestationVersion !== Number(versionId) || record.round !== Number(round)) throw new Error("record version or round does not match the request");
+if (transcripts.length !== config.n * config.cellsPerRound || new Set(transcripts.map((t) => t.probeId)).size !== transcripts.length) {
+  throw new Error("transcripts must contain exactly one execution for every scheduled probe");
+}
 
 const ok = (label, pass) => {
   console.log(`  ${pass ? "\x1b[32mok  \x1b[0m" : "\x1b[31mFAIL\x1b[0m"}  ${label}`);
@@ -61,6 +69,22 @@ const onChain = await client.readContract({
   args: [BigInt(versionId), Number(round)],
 });
 const b = ok("their Merkle root is the transcript root sealed on Monad", root.toLowerCase() === onChain.transcriptRoot.toLowerCase());
+const anchored = await client.readContract({ address: deployment.attestationRegistry, abi: abis.attestationRegistryAbi,
+  functionName: "getVersion", args: [BigInt(versionId)] });
+const { version: _version, ...issuanceManifest } = config;
+const d = ok("record and configuration bind to the onchain attestation and verdict",
+  record.auditRegistry.toLowerCase() === deployment.auditRegistry.toLowerCase()
+  && Number(record.chainId) === Number(deployment.chainId)
+  && record.attestationDigest.toLowerCase() === anchored.commitments.attestationDigest.toLowerCase()
+  && digest(issuanceManifest).toLowerCase() === anchored.commitments.attestationDigest.toLowerCase()
+  && config.poolRoot.toLowerCase() === anchored.commitments.referencePoolRoot.toLowerCase()
+  && config.seedChainRoot.toLowerCase() === anchored.commitments.seedChainRoot.toLowerCase()
+  && String(config.alphaRay) === String(anchored.stats.alphaRay)
+  && String(config.lambdaRay) === String(anchored.stats.lambdaRay)
+  && config.n === Number(anchored.stats.n) && config.m === Number(anchored.stats.m)
+  && config.tMax === Number(anchored.stats.tMax)
+  && BigInt(record.verdict.eRoundRay) === onChain.eRoundRay
+  && BigInt(record.verdict.logVersionRay) === onChain.cumLogRay);
 
 // 3. counts
 let c = true;
@@ -90,4 +114,4 @@ if (sample) {
   const content = JSON.parse(sample.response).choices?.[0]?.message?.content;
   console.log(`\n  e.g. ${sample.cellId}: "${sample.probe.user}"  ->  ${JSON.stringify(content)}`);
 }
-process.exit(a && b && c ? 0 : 1);
+process.exit(a && b && c && d ? 0 : 1);

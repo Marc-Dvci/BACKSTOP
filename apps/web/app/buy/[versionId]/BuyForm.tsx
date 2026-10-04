@@ -43,14 +43,17 @@ export function BuyForm(props: BuyFormProps) {
   const [termDays, setTermDays] = useState(30);
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState<string>("");
-  const [credential, setCredential] = useState<{ id: Hex; raw: ArrayBuffer } | null>(null);
+  const [credential, setCredential] = useState<{ id: Hex; raw: ArrayBuffer; owner: Address } | null>(null);
   const [txHash, setTxHash] = useState<Hex | null>(null);
+  const maxUsd = Number(BigInt(props.maxNotional)) / 1e6;
+  const inputValid = Number.isSafeInteger(notionalUsd * 1e6) && notionalUsd > 0 && notionalUsd <= maxUsd
+    && Number.isInteger(termDays) && termDays >= 1 && termDays <= 180;
 
   const q = useMemo(
     () =>
       quote({
-        notional: BigInt(Math.round(notionalUsd * 1e6)),
-        termSeconds: termDays * 24 * 3600,
+        notional: BigInt(Math.round((inputValid ? notionalUsd : 0) * 1e6)),
+        termSeconds: (Number.isInteger(termDays) && termDays >= 1 && termDays <= 180 ? termDays : 1) * 24 * 3600,
         roundSeconds: 3600,
         seasoningRounds: props.seasoningRounds,
         alpha: props.alpha,
@@ -95,8 +98,9 @@ export function BuyForm(props: BuyFormProps) {
         account,
         chain: monadTestnet,
       });
-      await publicClient.waitForTransactionReceipt({ hash });
-      setCredential({ id: cred.credentialId, raw: cred.rawId });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success") throw new Error("Passkey enrollment reverted. Please retry.");
+      setCredential({ id: cred.credentialId, raw: cred.rawId, owner: account });
       setStage("idle");
       setMessage("Passkey enrolled. It can now authorise policies on this contract.");
     } catch (err) {
@@ -108,9 +112,14 @@ export function BuyForm(props: BuyFormProps) {
   async function buy() {
     try {
       if (!credential) throw new Error("enrol a passkey first");
+      if (!inputValid) throw new Error("Enter a positive notional within pool capacity and a term of 1–180 whole days.");
       const { client, account } = await wallet.connect();
 
       setStage("quoting");
+      if (account.toLowerCase() !== credential.owner.toLowerCase()) {
+        setCredential(null);
+        throw new Error("Your wallet changed. Enrol a passkey for the current account before purchasing.");
+      }
       setMessage("Reading the current block…");
       const block = await publicClient.getBlock();
       const chainId = await publicClient.getChainId();
@@ -155,7 +164,8 @@ export function BuyForm(props: BuyFormProps) {
         account,
         chain: monadTestnet,
       });
-      await publicClient.waitForTransactionReceipt({ hash: approve });
+      const approval = await publicClient.waitForTransactionReceipt({ hash: approve });
+      if (approval.status !== "success") throw new Error("Premium approval reverted. Please retry.");
 
       setMessage("Submitting the policy…");
       const hash = await client.writeContract({
@@ -166,7 +176,8 @@ export function BuyForm(props: BuyFormProps) {
         account,
         chain: monadTestnet,
       });
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success") throw new Error("The purchase reverted; coverage was not created.");
       setTxHash(hash);
       setStage("done");
       setMessage("Coverage is live.");
@@ -190,6 +201,7 @@ export function BuyForm(props: BuyFormProps) {
             <input
               type="number"
               min={1000}
+              max={maxUsd}
               step={1000}
               value={notionalUsd}
               onChange={(e) => setNotionalUsd(Number(e.target.value))}
@@ -208,7 +220,7 @@ export function BuyForm(props: BuyFormProps) {
 
           <div className="hint" style={{ marginBottom: 16 }}>
             The payoff is binary and the notional fixed. No usage metering, no token accounting, no
-            price delta, no attribution. A crossing inside the term pays {notionalUsd.toLocaleString()}{" "}
+            price delta, no attribution. A crossing inside the term pays {notionalUsd.toLocaleString("en-US")}{" "}
             USDC.
           </div>
 
@@ -216,14 +228,15 @@ export function BuyForm(props: BuyFormProps) {
             <button className="btn" onClick={enrol} disabled={busy}>
               {credential ? "Passkey enrolled" : "1. Enrol passkey"}
             </button>
-            <button className="btn btn-primary" onClick={buy} disabled={busy || !credential}>
+            <button className="btn btn-primary" onClick={buy} disabled={busy || !credential || !inputValid}>
               2. Sign and take coverage
             </button>
           </div>
+          {!inputValid && <p className="hint" role="status">Choose a positive notional up to {maxUsd.toLocaleString("en-US")} test bUSDC and a term of 1–180 whole days.</p>}
 
           {message && (
             <div
-              className="hint"
+              className="hint" role="status" aria-live="polite"
               style={{ marginTop: 14, color: stage === "error" ? "var(--alarm)" : "var(--text-dim)" }}
             >
               {message}
@@ -251,7 +264,7 @@ export function BuyForm(props: BuyFormProps) {
           <div className="stat" style={{ padding: 0, marginBottom: 16 }}>
             <div className="stat-label">Premium</div>
             <div className="stat-value" style={{ color: "var(--accent)" }}>
-              {(Number(q.premium) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC
+              {(Number(q.premium) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 2 })} USDC
             </div>
             <div className="stat-sub">
               {q.premiumRateBps} bps of notional, fixed at inception and never repriced
@@ -296,9 +309,9 @@ export function BuyForm(props: BuyFormProps) {
           </table>
 
           <div className="hint" style={{ marginTop: 14 }}>
-            The false-alarm term is bounded by α by construction, so the lifetime error budget is a
-            priced input. P(detected) comes from the measured power and delay curve. P(departure) is a
-            stated prior until the index has enough history to replace it.
+            The α term is fixed at issuance. Its false-alarm interpretation relies on the declared
+            null and calibration assumptions. P(detected) comes from the measured power and delay
+            curve. P(departure) is a stated pricing prior.
           </div>
         </div>
       </div>

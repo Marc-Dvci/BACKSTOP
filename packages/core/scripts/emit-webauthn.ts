@@ -9,6 +9,8 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { p256 } from "@noble/curves/nist";
 import {
   signAssertion,
   publicKeyFrom,
@@ -17,6 +19,7 @@ import {
   fromHex,
   keccakString,
   Prng,
+  assertionMessageHash,
   type PolicyTerms,
 } from "../src/index.js";
 
@@ -59,6 +62,8 @@ interface Fixture {
   /** Terms the assertion actually signed, when they differ from the ones submitted. */
   signedTerms?: PolicyTerms;
   shouldVerify: boolean;
+  signedRpId?: string;
+  mutateClientData?: (json: string) => string;
 }
 
 const fixtures: Fixture[] = [
@@ -126,10 +131,24 @@ const fixtures: Fixture[] = [
   },
 ];
 
+fixtures.push(
+  { name: "wrong-rp-id-valid-signature", terms: base, origin: ORIGIN, userVerified: true, signedRpId: "attacker.example", shouldVerify: false },
+  { name: "cross-origin-valid-signature", terms: base, origin: ORIGIN, userVerified: true, mutateClientData: (s) => s.replace('"crossOrigin":false', '"crossOrigin":true'), shouldVerify: false },
+  { name: "duplicate-type-valid-signature", terms: base, origin: ORIGIN, userVerified: true, mutateClientData: (s) => s.replace("{", '{"type":"webauthn.create",'), shouldVerify: false },
+  { name: "nested-fields-valid-signature", terms: base, origin: ORIGIN, userVerified: true, mutateClientData: (s) => `{"nested":${s}}`, shouldVerify: false },
+  { name: "reordered-whitespace-valid-signature", terms: base, origin: ORIGIN, userVerified: true, mutateClientData: (s) => { const d = JSON.parse(s); return JSON.stringify({ origin: d.origin, crossOrigin: false, challenge: d.challenge, type: d.type }, null, 2); }, shouldVerify: true },
+);
+
 const out = fixtures.map((f) => {
   const signed = f.signedTerms ?? f.terms;
   const challenge = fromHex(policyDigest(signed));
-  const a = signAssertion(privateKey, challenge, RP_ID, f.origin, { userVerified: f.userVerified });
+  const a = signAssertion(privateKey, challenge, f.signedRpId ?? RP_ID, f.origin, { userVerified: f.userVerified });
+  if (f.mutateClientData) {
+    a.clientDataJSON = f.mutateClientData(a.clientDataJSON);
+    const signature = p256.sign(assertionMessageHash(fromHex(a.authenticatorData), a.clientDataJSON), privateKey, { prehash: false, lowS: true });
+    a.r = signature.r;
+    a.s = signature.s;
+  }
   return {
     name: f.name,
     shouldVerify: f.shouldVerify,
@@ -167,7 +186,7 @@ const doc = {
 };
 
 const target = new URL("../../../contracts/vectors/webauthn.json", import.meta.url);
-mkdirSync(dirname(target.pathname.slice(1)), { recursive: true });
+mkdirSync(dirname(fileURLToPath(target)), { recursive: true });
 writeFileSync(target, JSON.stringify(doc, null, 1));
 console.log(`wrote contracts/vectors/webauthn.json with ${out.length} fixtures`);
 console.log(`credential x=${pub.x.toString(16).slice(0, 16)}... y=${pub.y.toString(16).slice(0, 16)}...`);

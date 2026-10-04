@@ -1,7 +1,7 @@
 /**
  * The claim vault: one passkey, many keys, none of them a wallet.
  *
- * Mera's PRF output is deterministic key material, and every salt is an isolated namespace.
+ * WebAuthn PRF output is deterministic key material, and every salt is an isolated namespace.
  * BACKSTOP uses that primitive three times, and none of the three signs a blockchain
  * transaction:
  *
@@ -23,8 +23,8 @@
  * Nothing derived here is persisted. A fresh browser profile on a second device, given the same
  * passkey, reproduces the same three keys and opens the same state.
  *
- * The primitive is the WebAuthn PRF extension over the credential's HMAC secret, which is what
- * Mera exposes. The salts below are the namespaces.
+ * This implementation calls the browser's native WebAuthn PRF extension. It does not import
+ * a Mera library. Recovery needs a compatible authenticator, the same RP and the ciphertext.
  */
 
 export const NAMESPACE = {
@@ -247,7 +247,7 @@ export async function openTranscript(
   return new Uint8Array(plain);
 }
 
-/** Whether this browser and authenticator can produce PRF output at all. */
+/** Browser API presence only. Authenticator PRF support is checked at credential creation/use. */
 export async function prfAvailable(): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.credentials) return false;
   return typeof PublicKeyCredential !== "undefined";

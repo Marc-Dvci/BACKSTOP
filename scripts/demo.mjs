@@ -398,6 +398,7 @@ try {
     versionIds[e.key] = id;
     const eligible = await read(d.attestationRegistry, abi.attestations, "settlementEligible", [id]);
     await write(d.coveragePool, abi.pool, "setVersionEligible", [id, eligible]);
+    await write(d.policyRegistry, abi.policies, "setMinimumPremiumRate", [id, 180]);
     console.log(
       `   v${id}  ${e.label.padEnd(38)} ${eligible ? c.green("settlement") : c.dim("measurement only")}`,
     );
@@ -563,7 +564,7 @@ try {
       round,
       share,
       beacon,
-      CELLS_PER_ROUND * 8,
+      CELLS_PER_ROUND * N_DRAWS,
     ]);
     await write(d.auditRegistry, abi.audits, "sealRound", [
       versionIds.primary,
@@ -579,7 +580,7 @@ try {
     ]);
 
     // The control endpoint publishes too, so the index shows a flat trace beside the climbing one.
-    await write(d.auditRegistry, abi.audits, "openRound", [versionIds.control, round, share, beacon, CELLS_PER_ROUND * 8]);
+    await write(d.auditRegistry, abi.audits, "openRound", [versionIds.control, round, share, beacon, CELLS_PER_ROUND * N_DRAWS]);
     await write(d.auditRegistry, abi.audits, "sealRound", [versionIds.control, round, keccakString(`transcripts|c|${round}`), 0]);
     await write(d.auditRegistry, abi.audits, "closeRound", [versionIds.control, round, keccakString(`reveal|c|${round}`), verdicts.control.eRoundRay]);
 

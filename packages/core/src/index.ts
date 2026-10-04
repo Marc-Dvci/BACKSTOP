@@ -23,3 +23,4 @@ export * from "./simulate.js";
 export * from "./webauthn.js";
 export * from "./battery.js";
 export * from "./request.js";
+export * from "./beacon.js";

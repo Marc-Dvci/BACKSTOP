@@ -5,6 +5,10 @@ import {AttestationRegistry} from "./AttestationRegistry.sol";
 import {AuditRegistry} from "./AuditRegistry.sol";
 import {CoveragePool} from "./CoveragePool.sol";
 import {WebAuthnP256} from "./lib/WebAuthnP256.sol";
+
+interface ISettlementFinality {
+    function firstDisputedRoundPlusOne(uint256 versionId) external view returns (uint64);
+}
 import {BSA1} from "./lib/BSA1.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
 
@@ -108,6 +112,10 @@ contract PolicyRegistry {
     /// @notice One-shot nonces, scoped to the buyer.
     mapping(address => mapping(uint256 => bool)) public usedNonce;
 
+    /// @notice Governance-approved minimum total premium rate for each version. Zero disables
+    /// purchases until the pool has priced that version. A buyer cannot set its own discount.
+    mapping(uint256 => uint32) public minimumPremiumRateBps;
+
     event CredentialEnrolled(address indexed owner, bytes32 indexed credentialId, uint256 x, uint256 y);
     event PolicyPurchased(
         uint256 indexed policyId,
@@ -121,6 +129,7 @@ contract PolicyRegistry {
     );
     event PolicyExpired(uint256 indexed policyId, uint256 premiumEarned);
     event PolicySettled(uint256 indexed policyId, address indexed to, uint256 notional, uint256 premiumRefunded);
+    event MinimumPremiumSet(uint256 indexed versionId, uint32 rateBps);
 
     error NotGovernance();
     error NotSettlement();
@@ -135,6 +144,7 @@ contract PolicyRegistry {
     error PolicyNotActive();
     error TermNotOver();
     error TransferFailed();
+    error UnredeemedCrossing();
 
     modifier onlyGovernance() {
         if (msg.sender != governance) revert NotGovernance();
@@ -165,6 +175,13 @@ contract PolicyRegistry {
     function setRelyingParty(string calldata origin, bool requireUv) external onlyGovernance {
         rpOrigin = origin;
         requireUserVerification = requireUv;
+    }
+
+    function setMinimumPremiumRate(uint256 versionId, uint32 rateBps) external onlyGovernance {
+        attestations.getVersion(versionId); // reject an unknown version
+        if (rateBps > 10000) revert TermsMismatch();
+        minimumPremiumRateBps[versionId] = rateBps;
+        emit MinimumPremiumSet(versionId, rateBps);
     }
 
     // ---------------------------------------------------------------- passkeys
@@ -218,7 +235,7 @@ contract PolicyRegistry {
     ) external returns (uint256 policyId) {
         uint32 startRound = _authorise(t, assertion, credentialId);
 
-        uint256 premium = (t.notional * t.premiumRateBps) / 10000;
+        uint256 premium = (t.notional * t.premiumRateBps + 9999) / 10000;
         if (!asset.transferFrom(msg.sender, address(this), premium)) revert TransferFailed();
 
         policyId = _record(t, credentialId, startRound, premium);
@@ -243,15 +260,36 @@ contract PolicyRegistry {
     {
         if (t.chainId != block.chainid || t.verifyingContract != address(this)) revert TermsMismatch();
         if (t.policyVersion != POLICY_VERSION) revert TermsMismatch();
+        if (t.buyer != msg.sender || t.notional == 0 || t.notional > type(uint128).max) revert TermsMismatch();
+        if (t.term == 0 || t.term > type(uint64).max - block.timestamp) revert TermsMismatch();
+        if (t.premiumRateBps == 0 || t.premiumRateBps > 10000) revert TermsMismatch();
+        if (t.seasoningRounds > type(uint32).max) revert TermsMismatch();
         if (block.timestamp > t.expiry) revert QuoteExpired();
         if (usedNonce[t.buyer][t.nonce]) revert NonceUsed();
 
         uint256 versionId = t.attestationVersion;
         if (!attestations.settlementEligible(versionId)) revert NotWritable();
+        // A dispute blocks every subsequent cumulative verdict. Accepting a premium for
+        // a new policy here would sell coverage whose crossing can never finalise.
+        if (settlement == address(0) || ISettlementFinality(settlement).firstDisputedRoundPlusOne(versionId) != 0) {
+            revert NotWritable();
+        }
         if (attestations.endpointOf(versionId) != t.endpointId) revert TermsMismatch();
         if (audits.inWarningRegion(versionId)) revert CoverageFrozen();
 
-        startRound = audits.closedRounds(versionId) + uint32(t.seasoningRounds);
+        AttestationRegistry.Version memory version = attestations.getVersion(versionId);
+        if (audits.voidRateBps(versionId) > version.evidence.voidRateBreakerBps) revert NotWritable();
+        if (t.seasoningRounds < version.seasoningRounds) revert TermsMismatch();
+        uint32 floor = minimumPremiumRateBps[versionId];
+        if (floor == 0 || t.premiumRateBps < floor) revert NotWritable();
+
+        uint32 firstUnseenRound = audits.closedRounds(versionId);
+        // A round already opened or sealed can expose evidence before the purchase. Skip it
+        // even when seasoning is zero; only rounds opened after inception may contribute.
+        if (audits.getRound(versionId, firstUnseenRound).state != AuditRegistry.RoundState.None) {
+            firstUnseenRound += 1;
+        }
+        startRound = firstUnseenRound + uint32(t.seasoningRounds);
         if (startRound >= attestations.stats(versionId).tMax) revert NotWritable();
 
         Credential memory cred = credentials[t.buyer][credentialId];
@@ -311,6 +349,15 @@ contract PolicyRegistry {
         Policy storage p = _policies[policyId];
         if (p.status != PolicyStatus.Active) revert PolicyNotActive();
         if (block.timestamp < p.expiryAt) revert TermNotOver();
+        // Expiry must not erase a claim that crossed during the term. The challenge window
+        // may finish after expiry, and anyone can call expire, so elapsed time alone is unsafe.
+        uint32 closed = audits.closedRounds(p.versionId);
+        uint64 disputed = settlement == address(0) ? 0 : ISettlementFinality(settlement).firstDisputedRoundPlusOne(p.versionId);
+        for (uint32 round = p.startRound; round < closed; round++) {
+            AuditRegistry.Round memory r = audits.getRound(p.versionId, round);
+            if (r.closedAt > p.expiryAt) break;
+            if ((disputed == 0 || uint64(round) + 1 < disputed) && claimable(policyId, round)) revert UnredeemedCrossing();
+        }
 
         p.status = PolicyStatus.Expired;
         uint256 premium = p.premiumEscrowed;

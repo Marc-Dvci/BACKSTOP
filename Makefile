@@ -17,8 +17,11 @@ build: ## Build the engine, the SDK, the CLI and the contracts
 	pnpm --filter @backstop/cli build
 	cd contracts && forge build
 
-test: ## Run every test: engine, contracts, invariants, differential
-	pnpm --filter @backstop/core test
+test: ## Run engine, SDK, contracts, invariants and differential checks
+	pnpm test
+	pnpm test:indexer
+	pnpm test:web
+	pnpm test:cre
 	cd contracts && forge test -vv
 
 demo: build ## One command: the whole protocol, end to end, on a local chain

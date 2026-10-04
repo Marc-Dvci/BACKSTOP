@@ -18,6 +18,7 @@ a consumer reads one row instead of reconstructing a join and a chain call.
 | `Policy` | the terms, the quote components that produced the price, and the realised detection delay once it settles |
 | `Pool` | collateralisation in basis points, updated on every capital event |
 | `Producer` | realised void rate per evidence producer |
+| `ExecutionTicket` | which round and producer a publication belongs to, without double counting |
 | `Issuer` | versions issued, retired and suspended, and challenges upheld against them |
 | `ProtocolIndex` | one row: loss ratio, mean detection delay, largest settled batch and the gas it took |
 
@@ -33,7 +34,20 @@ docker compose up
 
 GraphQL is then at `http://localhost:8080/v1/graphql`, console at `http://localhost:8080`,
 admin secret `backstop`. The app reads the same endpoint through `NEXT_PUBLIC_INDEXER_URL` and
-renders it at `/protocol`; unset, it defaults to that local endpoint.
+renders it at `/protocol`. If unset, the app uses a timestamped published snapshot and labels
+that source. Set the variable explicitly to query your indexer.
+
+The audited bundle contains a fresh Envio backfill of the public campaign cache through block
+67,879,603: 31 rounds, 23,808 scheduled executions and 7 settled policies. This combines the
+18 seeded rounds with the 13 actual model rounds; it is a historical snapshot, not a live head.
+The exact GraphQL result is retained in `docs/results/indexer-backfill-2026-10-03.json`.
+The revised handlers consume `VersionConfigured` and `RoundScheduled` from new deployments.
+They use each version's emitted boundary rather than a universal alpha. For older events,
+direct `openRound` calldata can recover counts; missing denominators and boundaries remain
+unavailable. The published historical snapshot retains the known demo-specific values at its
+recorded watermark. Its existence does not imply old contracts emit the new metadata.
+`rpc-cache.mjs --serve --frozen` replays a populated cache at its saved watermark and refuses
+log queries beyond that watermark. Without `--frozen`, it continues scanning the current chain.
 
 Three things about this stack are load-bearing and were each found the hard way:
 

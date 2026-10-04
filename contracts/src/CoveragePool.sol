@@ -71,6 +71,7 @@ contract CoveragePool {
     error IssuerNotEligible();
     error ZeroAmount();
     error TransferFailed();
+    error InsolventPool();
 
     modifier onlyGovernance() {
         if (msg.sender != governance) revert NotGovernance();
@@ -104,6 +105,7 @@ contract CoveragePool {
         external
         onlyGovernance
     {
+        if (singleBps > 10000) revert CapExceeded("singlePolicyBps");
         perBuyerCap = buyer;
         perEndpointCap = endpoint;
         perProviderModelCap = providerModel;
@@ -133,7 +135,9 @@ contract CoveragePool {
     }
 
     function convertToShares(uint256 assets) public view returns (uint256) {
-        if (totalShares == 0 || totalAssets == 0) return assets;
+        // New deposits must not recapitalise old, worthless shares for their holders.
+        if (totalAssets == 0 && totalShares != 0) revert InsolventPool();
+        if (totalShares == 0) return assets;
         return (assets * totalShares) / totalAssets;
     }
 
@@ -145,6 +149,7 @@ contract CoveragePool {
     function deposit(uint256 assets) external returns (uint256 shares) {
         if (assets == 0) revert ZeroAmount();
         shares = convertToShares(assets);
+        if (shares == 0) revert ZeroAmount();
         _pull(msg.sender, assets);
         totalAssets += assets;
         totalShares += shares;
@@ -161,6 +166,7 @@ contract CoveragePool {
     function withdraw(uint256 shares) external returns (uint256 assets) {
         if (shares == 0) revert ZeroAmount();
         assets = convertToAssets(shares);
+        if (assets == 0) revert ZeroAmount();
         uint256 free = freeCapital();
         if (assets > free) revert InsufficientFreeCapital(assets, free);
 

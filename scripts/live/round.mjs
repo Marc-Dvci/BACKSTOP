@@ -42,7 +42,7 @@ import {
   loadLaws,
   buildPool,
   versionSecrets,
-  drandLatest,
+  drandScheduled,
   fmtMon,
   REPUTATION_REGISTRY,
 } from "./common.mjs";
@@ -81,6 +81,18 @@ const entry = state.versions?.[KEY];
 if (!entry) throw new Error(`${KEY} has not been issued; run scripts/live/issue.mjs`);
 const att = JSON.parse(readFileSync(join(ROOT, entry.attestation), "utf8"));
 const versionId = BigInt(entry.versionId);
+// Archived versions retain their September evidence. Fresh cadence requires a schedule
+// committed in the issuance manifest; selecting a latest beacon would allow seed steering.
+if (att.beacon?.firstRound === undefined) {
+  console.log("  archived version has no issuance-bound beacon schedule; preserve its evidence and issue a fresh scheduled campaign before resuming cadence");
+  process.exit(3);
+}
+core.scheduledQuicknetRound(att.beacon, 0);
+const anchored = await read(deployment.attestationRegistry, abis.attestationRegistryAbi, "getVersion", [versionId]);
+const { version: _version, ...issuance } = att;
+if (digest(issuance).toLowerCase() !== anchored.commitments.attestationDigest.toLowerCase()) {
+  throw new Error("local issuance manifest differs from the chain commitment");
+}
 
 const issuer = walletFor(requireEnv("LIVE_ISSUER_KEY"));
 const A = abis;
@@ -139,7 +151,7 @@ const { pool } = buildPool(KEY, laws, att.cellIds);
 if (poolRoot(pool).toLowerCase() !== att.poolRoot.toLowerCase()) {
   throw new Error("the pool secret does not reproduce the committed reference pool root");
 }
-const health = await fetch(`${baseUrl.replace(/\/v1\/?$/, "")}/health`).catch(() => null);
+const health = await fetch(`${baseUrl.replace(/\/v1\/?$/, "")}/health`, { signal: AbortSignal.timeout(10000) }).catch(() => null);
 if (!health?.ok) throw new Error(`the endpoint at ${baseUrl} is not answering`);
 
 const dir = join(OUT, `v${versionId}`);
@@ -149,10 +161,9 @@ const checkpointPath = join(dir, `.checkpoint-round-${round}.json`);
 // ---------------------------------------------------------------- 2. open
 
 let issuerShare;
-let beacon;
+let beacon = await drandScheduled(core.scheduledQuicknetRound(att.beacon, round));
 if (pendingState === 0) {
   issuerShare = seedChain.shares[round];
-  beacon = await drandLatest();
   await send(issuer.wallet, issuer.account, deployment.auditRegistry, A.auditRegistryAbi, "openRound", [
     versionId,
     round,
@@ -164,7 +175,9 @@ if (pendingState === 0) {
 } else {
   // The shares already on chain are the ones this round is bound to.
   issuerShare = pending.issuerShare;
-  beacon = { round: null, value: pending.beaconValue };
+  if (beacon.value.toLowerCase() !== pending.beaconValue.toLowerCase() || issuerShare.toLowerCase() !== seedChain.shares[round].toLowerCase()) {
+    throw new Error("pending round differs from the committed seed/beacon schedule");
+  }
   console.log(`  resuming round ${round}, ${pendingState === 1 ? "open" : "sealed"} on chain`);
 }
 const seed = roundSeed(issuerShare, beacon.value);
@@ -256,14 +269,7 @@ if (pendingState < 2) {
 } else if (existsSync(checkpointPath)) {
   ({ transcripts, observations } = JSON.parse(readFileSync(checkpointPath, "utf8")));
 } else {
-  // Sealed, and the transcripts behind the seal are gone: every cell closes as void, the most
-  // null-favourable outcome the calibrator can emit.
-  observations = selected.map((cellId) => ({
-    cellId,
-    counts: new Array(CELLS.find((c) => c.id === cellId).alphabet.length).fill(0),
-    unmatched: 0,
-    failed: att.n,
-  }));
+  throw new Error("sealed round checkpoint is missing; restore the original transcript checkpoint before closing");
 }
 const transcriptTree = new MerkleTree(
   transcripts.length
@@ -271,6 +277,10 @@ const transcriptTree = new MerkleTree(
     : [hashLeaf(utf8("no transcripts"))],
 );
 const voided = transcripts.filter((t) => t.content === null).length;
+const sealedRound = await read(deployment.auditRegistry, A.auditRegistryAbi, "getRound", [versionId, round]);
+if (transcriptTree.root.toLowerCase() !== sealedRound.transcriptRoot.toLowerCase() || voided !== Number(sealedRound.voided)) {
+  throw new Error("checkpoint transcripts do not reproduce the sealed round");
+}
 
 // ---------------------------------------------------------------- 5. evaluate and close
 
@@ -282,10 +292,10 @@ const params = {
   alphaRay: BigInt(att.alphaRay),
   mixtureIds: att.mixtureIds,
 };
-// A cell where most executions failed is voided: it contributes the minimum e-value the
-// calibrator can emit, which is the most null-favourable outcome, so failure never helps a claim.
+// Any missing response voids the cell. Renormalising a selected subset would no longer be an
+// n-draw sample exchangeable with calibration, even when just one execution failed.
 const engineObs = observations.map((o) =>
-  o.failed > att.n / 2 ? { cellId: o.cellId, counts: o.counts, voided: true } : { cellId: o.cellId, counts: o.counts },
+  o.failed > 0 || o.unmatched > 0 ? { cellId: o.cellId, counts: o.counts, voided: true } : { cellId: o.cellId, counts: o.counts },
 );
 const verdict = evaluateRound(round, engineObs, pool, params, new PoolCache(pool, att.poolRoot, att.m, att.tMax));
 

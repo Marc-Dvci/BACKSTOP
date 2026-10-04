@@ -20,7 +20,10 @@ type Endpoint {
   "log M_version at the latest closed round, RAY scale"
   versionLogRay: BigInt!
   "Fraction of the way to the boundary, in basis points"
-  distanceBps: Int!
+  distanceBps: Int
+  boundaryRay: BigInt
+  scheduledPerRound: Int
+  missingScheduledRounds: Int!
   inWarningRegion: Boolean!
   crossed: Boolean!
   crossedAtRound: Int
@@ -29,7 +32,7 @@ type Endpoint {
   scheduledTotal: Int!
   voidedTotal: Int!
   "Realised void rate against the attestation's declared circuit breaker"
-  voidRateBps: Int!
+  voidRateBps: Int
 
   "Sum of notional over every live policy on this endpoint"
   outstandingNotional: BigInt!
@@ -70,6 +73,7 @@ type Round {
   warning: Boolean!
   versionCrossed: Boolean!
   scheduled: Int!
+  scheduledKnown: Boolean!
   voided: Int!
   openedAt: BigInt!
   sealedAt: BigInt
@@ -156,6 +160,14 @@ type Producer {
   ticketsVoided: Int!
   slashed: BigInt!
   voidRateBps: Int!
+}
+
+"Joins a publication's ticket id to its assigned producer and round."
+type ExecutionTicket {
+  id: ID!
+  producer_id: ID!
+  round_id: ID!
+  status: String!
 }
 
 """

@@ -106,15 +106,26 @@ export function verifyAssertion(
 ): boolean {
   const authData = fromHex(a.authenticatorData);
   if (authData.length < 37) return false;
+  let hostname: string;
+  try { hostname = new URL(origin).hostname; } catch { return false; }
+  const expectedRpHash = sha256(utf8(hostname));
+  if (!expectedRpHash.every((value, i) => authData[i] === value)) return false;
 
   const flags = authData[32] ?? 0;
   if ((flags & FLAG_USER_PRESENT) !== FLAG_USER_PRESENT) return false;
   if (requireUserVerification && (flags & FLAG_USER_VERIFIED) !== FLAG_USER_VERIFIED) return false;
 
   const cd = a.clientDataJSON;
-  if (!cd.includes('"type":"webauthn.get"')) return false;
-  if (!cd.includes(`"origin":"${origin}"`)) return false;
-  if (!cd.includes(`"challenge":"${base64url(challenge)}"`)) return false;
+  // Match the Solidity parser's supported flat object grammar, then parse the fields.
+  const pair = '"[^"\\\\\\x00-\\x1f]*"\\s*:\\s*(?:"[^"\\\\\\x00-\\x1f]*"|true|false)';
+  if (!new RegExp(`^\\s*\\{\\s*${pair}(?:\\s*,\\s*${pair})*\\s*\\}\\s*$`).test(cd)) return false;
+  const keys = [...cd.matchAll(/"([^"\\]*)"\s*:/g)].map((m) => m[1]);
+  for (const key of ["type", "origin", "challenge", "crossOrigin"]) {
+    if (keys.filter((k) => k === key).length > 1) return false;
+  }
+  const parsed = JSON.parse(cd) as Record<string, unknown>;
+  if (parsed.type !== "webauthn.get" || parsed.origin !== origin || parsed.challenge !== base64url(challenge)) return false;
+  if (parsed.crossOrigin !== undefined && parsed.crossOrigin !== false) return false;
   if (a.s > P256_N_DIV_2) return false;
 
   const messageHash = assertionMessageHash(authData, cd);

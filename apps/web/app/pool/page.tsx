@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getEndpoints, getPolicies, getPool } from "@/lib/data";
+import { getEndpoints, getPolicies, getPool, dataSource } from "@/lib/data";
 import { usdc, formatRay, short, untilLabel, POLICY_STATUS } from "@/lib/format";
 
 // The index is a live view of chain state, so it is rendered per request rather than
@@ -10,6 +10,7 @@ export const metadata = { title: "Coverage pool · BACKSTOP" };
 
 export default async function PoolPage() {
   const [pool, policies, endpoints] = await Promise.all([getPool(), getPolicies(), getEndpoints()]);
+  const source = await dataSource();
 
   const byEndpoint = new Map<number, bigint>();
   for (const p of policies) {
@@ -23,6 +24,7 @@ export default async function PoolPage() {
   return (
     <div style={{ padding: "36px 0" }}>
       <h1 style={{ fontFamily: "var(--mono)", fontSize: 26, margin: "0 0 10px" }}>Coverage pool</h1>
+      {source === "snapshot" && <p className="data-notice" role="status">Monad could not be read. These are figures from the bundled simulated local demonstration.</p>}
       <p className="prose" style={{ marginBottom: 26 }}>
         Maximum outstanding liability is fully collateralised at all times. Withdrawal is bounded by
         free capital recomputed at withdrawal time, so an underwriter cannot remove collateral backing
@@ -33,7 +35,7 @@ export default async function PoolPage() {
         <div className="panel stat">
           <div className="stat-label">Total collateral</div>
           <div className="stat-value">{usdc(pool.totalAssets)}</div>
-          <div className="stat-sub">USDC deposited by underwriters</div>
+          <div className="stat-sub">Test bUSDC deposited in the demonstration</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Reserved</div>

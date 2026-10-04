@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createPublicClient, http, type Address, type Hex } from "viem";
+import { createPublicClient, fallback, http, type Address, type Hex } from "viem";
 import {
   attestationRegistryAbi,
   auditRegistryAbi,
@@ -37,13 +37,20 @@ export function isDeployed(): boolean {
  * calls are coalesced through Multicall3 at the canonical address, which Monad has deployed.
  * One page render becomes a handful of requests instead of dozens.
  */
-export function client() {
+function createReadClient() {
   return createPublicClient({
     chain: monadTestnet,
-    transport: http(process.env.MONAD_RPC_URL ?? monadTestnet.rpcUrls.default.http[0]),
-    batch: { multicall: { batchSize: 1024, wait: 16 } },
+    transport: fallback([
+      http(process.env.MONAD_RPC_URL ?? monadTestnet.rpcUrls.default.http[0], { timeout: 5000, retryCount: 0 }),
+      http("https://10143.rpc.thirdweb.com", { timeout: 5000, retryCount: 0 }),
+    ], { retryCount: 0 }),
+    batch: { multicall: { batchSize: 8192, wait: 16 } },
   });
 }
+
+// Share batching across requests rather than creating a new queue for every chain call.
+let readClient: ReturnType<typeof createReadClient> | undefined;
+export function client() { return readClient ??= createReadClient(); }
 
 
 /**
@@ -192,10 +199,10 @@ export async function readEndpoints(): Promise<EndpointRow[]> {
   return rows;
 }
 
-export async function readRounds(versionId: number): Promise<RoundRow[]> {
+export async function readRounds(versionId: number, knownClosedCount?: number): Promise<RoundRow[]> {
   const d = deployment();
   const c = client();
-  const closed = Number(
+  const closed = knownClosedCount ?? Number(
     (await c.readContract({
       address: d.auditRegistry,
       abi: auditRegistryAbi,

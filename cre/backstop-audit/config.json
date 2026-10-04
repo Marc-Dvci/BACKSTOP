@@ -3,14 +3,11 @@
   "auditRegistry": "0xcacFf7F418F92C160f270f6B4Db3B00fD739872F",
   "receiver": "${BACKSTOP_CRE_RECEIVER}",
   "versionId": "1",
-
-  "evidenceBaseUrl": "https://backstop-smoky.vercel.app/evidence",
-  "poolUri": "https://backstop-smoky.vercel.app/pools/v1.json",
-  "beaconUrl": "https://api.drand.sh/public/latest",
-
+  "evidenceBaseUrl": "${BACKSTOP_EVIDENCE_BASE_URL}",
   "alphaRay": "50000000000000002382364672",
   "lambdaRay": "500000000000000000000000000",
   "m": 99,
+  "n": 96,
   "tMax": 40,
   "cellsPerRound": 8,
   "cellIds": [
@@ -23,8 +20,16 @@
     "letter.es",
     "letter.zh"
   ],
-  "mixtureIds": ["cfg-bf16", "cfg-q8_0", "mix-50"],
+  "mixtureIds": [
+    "cfg-bf16",
+    "cfg-q8_0",
+    "mix-50"
+  ],
   "poolRoot": "0x73ff0b60488407c85fe02f61b3bcc4fef17bc2a1451f67bb440bf356222f9611",
   "seedChainRoot": "0x27f44f79f309c62231144f4091d1285e087281c8b7198cc94a12c464ee645924",
-  "cadenceSeconds": 3600
+  "cadenceSeconds": 3600,
+  "nR": 8000,
+  "attestationDigest": "0xbcaae213509e0ec4cd6e1ad1ea1ea23834e08aa7d95aa211a8929b543e082d64",
+  "firstBeaconRound": 32506228,
+  "beaconBaseUrl": "https://api.drand.sh"
 }

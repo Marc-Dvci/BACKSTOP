@@ -52,6 +52,7 @@ const {
   empirical,
   CANONICAL_ARITHMETIC_HASH,
   NORMALIZATION_IMPL_HASH,
+  QUICKNET,
 } = core;
 
 const STATE = join(ROOT, "attestations", "live.json");
@@ -136,7 +137,11 @@ for (const key of keys) {
     poolRoot: root,
     seedChainRoot: seedChain.root,
     probePoolRoot: probeRoot,
-    beacon: { name: "drand quicknet", chainHash: "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971" },
+    beacon: { name: "drand quicknet", chainHash: QUICKNET.chainHash,
+      // The first beacon is still in the future when the issuance is constructed.
+      // A daily cadence consumes an exact public round, including after a delayed job.
+      firstRound: Math.floor((Date.now() / 1000 + 600 - QUICKNET.genesisTime) / QUICKNET.periodSeconds) + 1,
+      roundStep: 86400 / QUICKNET.periodSeconds },
     canonicalArithmeticHash: CANONICAL_ARITHMETIC_HASH,
     normalizationImplHash: NORMALIZATION_IMPL_HASH,
     envelope: {
@@ -194,6 +199,13 @@ for (const key of keys) {
     versionId,
     eligible,
   ]);
+  // Fresh audited deployments require governance to enable a positive underwriting floor.
+  // Do not run this issuance script against the September contracts: migrate the deployment
+  // mapping first, preserving the historical addresses and published campaign.
+  if (eligible) {
+    await send(deployer.wallet, deployer.account, deployment.policyRegistry, abis.policyRegistryAbi,
+      "setMinimumPremiumRate", [versionId, 180]);
+  }
 
   attestation.version = Number(versionId);
   writeFileSync(join(ROOT, "attestations", `live-${key}.json`), JSON.stringify(attestation, null, 2) + "\n");

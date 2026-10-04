@@ -133,12 +133,14 @@ contract TicketRegistry {
 
     // ---------------------------------------------------------------- tickets
 
-    function ticketId(uint256 versionId, address contributor, uint32 round, bytes32 probeId)
+    function ticketId(uint256 versionId, address /* contributor */, uint32 round, bytes32 probeId)
         public
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(versionId, contributor, round, probeId));
+        // A scheduled probe is one execution for the whole audit. Changing the beneficiary
+        // cannot create a second upstream attempt against the same evidence budget.
+        return keccak256(abi.encode(versionId, round, probeId));
     }
 
     function ticket(bytes32 id) external view returns (Ticket memory) {

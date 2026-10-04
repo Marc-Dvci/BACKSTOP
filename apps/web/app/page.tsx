@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getEndpoints, getPolicies, getPool, dataSource } from "@/lib/data";
+import { getEndpoints, getPolicies, getPool, dataSource, snapshotAge } from "@/lib/data";
+import { getLiveOverview } from "@/lib/live";
 import { formatRay, expRay, usdc, short } from "@/lib/format";
 
 // The index is a live view of chain state, so it is rendered per request rather than
@@ -10,9 +11,9 @@ export const revalidate = 0;
 export default async function IndexPage() {
   // The source is resolved first, so every panel below agrees about what it is reading.
   const source = await dataSource();
-  const [all, pool, policies] = await Promise.all([getEndpoints(), getPool(), getPolicies()]);
+  const [all, pool, policies, evidence] = await Promise.all([getEndpoints(), getPool(), getPolicies(), getLiveOverview()]);
   // Retired versions keep their history on their own pages; the index lists what is running.
-  const endpoints = all.filter((e) => e.status !== 2);
+  const endpoints = all.filter((e) => e.status !== 2).sort((a, b) => Number(Boolean(b.attestationUrl)) - Number(Boolean(a.attestationUrl)) || b.versionId - a.versionId);
   const retired = all.filter((e) => e.status === 2);
   const settlement = endpoints.filter((e) => e.settlementEligible);
   const measurement = endpoints.filter((e) => !e.settlementEligible);
@@ -24,7 +25,7 @@ export default async function IndexPage() {
         <h1
           style={{
             fontFamily: "var(--mono)",
-            fontSize: 34,
+            fontSize: "clamp(26px, 4vw, 34px)",
             letterSpacing: "-0.02em",
             margin: "0 0 14px",
             lineHeight: 1.2,
@@ -33,10 +34,22 @@ export default async function IndexPage() {
           Is the endpoint still serving what it claims?
         </h1>
         <p style={{ maxWidth: "68ch", color: "var(--text-dim)", fontSize: 15, margin: "0 0 8px" }}>
-          BACKSTOP tests every endpoint below against the behavioural envelope its attestation committed
-          to, proves each result from cryptographically authenticated responses, and turns a proven
-          departure into an executable guarantee.
+          BACKSTOP helps teams buying hosted AI inference detect a change in the model&rsquo;s
+          behaviour and verify the evidence. The testnet demo catches a quantisation swap and
+          settles WebAuthn-authorised coverage on Monad.
         </p>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
+          <Link href="/endpoint/6" className="btn btn-primary">See the detected swap</Link>
+          <Link href="/verify" className="btn">Replay it in your browser</Link>
+          <Link href="/docs" className="btn">Integrate the audit</Link>
+        </div>
+        <p className="hint" style={{ marginTop: 16, maxWidth: "90ch" }}>
+          Demonstrated: three policies, 105,000 bUSDC paid in one transaction. bUSDC is a test token.
+          {evidence && <> {evidence.completions.toLocaleString()} recorded completions across {evidence.rounds} real model rounds.
+          {" "}Last measurement: <time dateTime={new Date(evidence.closedAt * 1000).toISOString()}>{new Date(evidence.closedAt * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC</time>.
+          {" "}Recorded experiment.</>}
+        </p>
+        {source === "snapshot" && <p role="status" className="data-notice">Monad could not be read. Showing the local demonstration snapshot from {new Date(snapshotAge() * 1000).toISOString().slice(0, 10)}; these figures are simulated.</p>}
         <p style={{ maxWidth: "68ch", color: "var(--text-faint)", fontSize: 13, margin: 0 }}>
           The threshold, the probe battery and the lifetime error budget are fixed on chain before any
           round runs. Every verdict recomputes from published data with <code style={{ fontFamily: "var(--mono)" }}>backstop replay</code>.
@@ -176,17 +189,16 @@ export default async function IndexPage() {
             <p>
               <strong style={{ color: "var(--accent)" }}>Settlement.</strong> Every settlement-critical
               field is declared: model identity, serving stack, and the enumerated mixture set M. The
-              null protects exactly the configurations in M, so these endpoints can back a policy and a
-              crossing pays the notional in full.
+              null protects exactly the configurations in M, so these endpoints can back a policy and
+              a final crossing supports settlement of the notional in full.
             </p>
             <p>
-              <strong style={{ color: "var(--text-dim)" }}>Measurement.</strong> The routing cannot be
-              enumerated, so the endpoint is measured, published and indexed, and the contract refuses
-              to write coverage on it. Measurement needs nobody&rsquo;s permission and still publishes.
+              <strong style={{ color: "var(--text-dim)" }}>Measurement.</strong> Published observations,
+              reference commitments and round records make an endpoint inspectable. This tier
+              supports measurement and replay across declared endpoint configurations.
             </p>
             <p style={{ marginBottom: 0 }}>
-              The predicate is enforced at issuance in <code>AttestationRegistry</code>, not at the
-              point of sale.
+              <code>AttestationRegistry</code> fixes each version&rsquo;s settlement eligibility at issuance.
             </p>
           </div>
         </div>
@@ -209,7 +221,7 @@ export default async function IndexPage() {
                 {policies.length === 0 && (
                   <tr>
                     <td colSpan={4} style={{ color: "var(--text-faint)" }}>
-                      no coverage written yet
+                      <Link href="/judges">Explore the recorded coverage experiment</Link>
                     </td>
                   </tr>
                 )}

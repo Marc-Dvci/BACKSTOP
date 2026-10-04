@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BuyForm } from "./BuyForm";
-import { getEndpoint } from "@/lib/data";
+import { getEndpoint, getPool, dataSource } from "@/lib/data";
 import { deployment } from "@/lib/chain";
 import { formatRay } from "@/lib/format";
 import bench from "@/lib/bench.json";
@@ -13,6 +13,12 @@ export default async function BuyPage({ params }: { params: Promise<{ versionId:
   const id = Number(versionId);
   const endpoint = await getEndpoint(id);
   if (!endpoint || !endpoint.settlementEligible) notFound();
+  const [pool, source] = await Promise.all([getPool(), dataSource()]);
+  const blocked = source !== "chain" ? "Live Monad data is unavailable. Retry once the chain connection recovers."
+    : endpoint.status !== 1 ? "This attestation is retired or suspended. Choose an active version."
+    : endpoint.inWarningRegion ? "Evidence has entered the warning region. New coverage is frozen."
+    : endpoint.closedRounds + endpoint.seasoningRounds >= endpoint.tMax ? "This attestation has no claim-eligible rounds remaining."
+    : pool.maxNotional <= 0n ? "The pool has no free capital for a new policy." : null;
 
   const alpha = Number(endpoint.alphaRay) / 1e27;
 
@@ -34,20 +40,20 @@ export default async function BuyPage({ params }: { params: Promise<{ versionId:
         </p>
       </div>
 
-      <BuyForm
+      {blocked ? <div className="data-notice" role="status">{blocked} <Link href="/">Return to the index</Link>.</div> : <BuyForm
         deployment={deployment()}
         versionId={id}
         endpointId={endpoint.endpointId}
         label={endpoint.label}
         alpha={alpha}
         seasoningRounds={endpoint.seasoningRounds}
-        maxNotional="0"
+        maxNotional={pool.maxNotional.toString()}
         power={Number(curve?.power ?? 1)}
         medianDelayRounds={Number(curve?.medianDelay ?? 5)}
         departureRatePerYear={0.6}
         tMax={endpoint.tMax}
         roundsClosed={endpoint.closedRounds}
-      />
+      />}
 
       <div className="panel" style={{ marginTop: 20 }}>
         <div className="panel-head">

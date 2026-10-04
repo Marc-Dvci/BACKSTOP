@@ -45,13 +45,24 @@ export const liveState = live as {
 
 export async function getLiveRounds(versionId: number): Promise<LiveRound[] | null> {
   try {
-    const res = await fetch(`${LIVE_DATA}/index.json`, { next: { revalidate: 60 } });
+    const res = await fetch(`${LIVE_DATA}/index.json`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     const index = (await res.json()) as LiveIndex;
     return index.versions[String(versionId)]?.rounds ?? null;
   } catch {
     return null;
   }
+}
+
+export async function getLiveOverview(): Promise<{ rounds: number; completions: number; closedAt: number } | null> {
+  try {
+    const res = await fetch(`${LIVE_DATA}/index.json`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const index = await res.json() as LiveIndex;
+    const rounds = Object.values(index.versions).flatMap((v) => v.rounds);
+    if (!rounds.length) return null;
+    return { rounds: rounds.length, completions: rounds.reduce((sum, r) => sum + r.completions - r.voided, 0), closedAt: Math.max(...rounds.map((r) => r.closedAt)) };
+  } catch { return null; }
 }
 
 export function liveKeyOf(versionId: number): string | null {

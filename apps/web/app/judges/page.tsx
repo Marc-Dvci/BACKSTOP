@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Faucet } from "./Faucet";
 import { deployment } from "@/lib/chain";
-import { getEndpoints } from "@/lib/data";
+import { getEndpoints, dataSource } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,6 +20,7 @@ const CONTRACTS: { label: string; key: keyof ReturnType<typeof deployment> }[] =
 export default async function JudgesPage() {
   const d = deployment();
   const endpoints = await getEndpoints();
+  const source = await dataSource();
   // Versions audited from real completions come first: their crossing is the stronger evidence.
   const hasCrossed = (e: (typeof endpoints)[number]) => e.boundaryRay > 0n && e.versionLogRay >= e.boundaryRay;
   const ordered = [...endpoints.filter((e) => e.attestationUrl), ...endpoints.filter((e) => !e.attestationUrl)];
@@ -30,9 +31,21 @@ export default async function JudgesPage() {
     <div style={{ padding: "36px 0" }}>
       <h1 style={{ fontFamily: "var(--mono)", fontSize: 26, margin: "0 0 10px" }}>Start here</h1>
       <p className="prose" style={{ marginBottom: 26 }}>
-        Everything below is live on Monad testnet. No login, no credentials, nothing to install.
+        Read the recorded Monad testnet experiment. No login, no credentials, nothing to install.
         The two steps that need a wallet are optional; every page reads without one.
       </p>
+      {source === "snapshot" && <p className="data-notice" role="status">Monad is unavailable. This page currently shows the bundled local demo; the public round records below remain independently replayable.</p>}
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head"><span className="panel-title">The result, in one minute</span></div>
+        <div className="panel-body prose">
+          <p>A controlled Qwen3-1.7B endpoint switches from Q8_0 to Q4_K_M. The precommitted test crosses after three rounds of the substituted weights. The control stays below the boundary.</p>
+          <p>Three policies pay 105,000 test bUSDC in <a href="https://testnet.monadexplorer.com/tx/0xa71f6ff2de31b210b4b7aa8a6e7d48ac68c72040f38900357949751869dc7542">one recorded settlement transaction</a>. These are test tokens and a founder-run experiment.</p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}><Link className="btn btn-primary" href="/endpoint/6">1. See the crossing</Link><Link className="btn" href="/verify">2. Recompute it here</Link><Link className="btn" href="/policy/5">3. See a paid policy</Link></div>
+          <p className="hint" style={{ marginTop: 16 }}>The experiment publishes issuer-recorded response transcripts. Verify every response commitment against the root sealed on Monad, then reproduce the observed counts and verdict.</p>
+          <p className="hint">The recorded policies were authorised by signed WebAuthn assertions verified on Monad. The browser purchase flow enrols a passkey and binds each signature to the buyer and coverage terms.</p>
+        </div>
+      </div>
 
       <div className="panel" style={{ marginBottom: 20 }}>
         <div className="panel-head">
@@ -60,8 +73,8 @@ export default async function JudgesPage() {
             </li>
             <li>
               <Link href="/vault">Try the claim vault</Link>. One passkey, three namespaces, none
-              of them a wallet. Open it in a second browser profile with the same passkey and the
-              derived keys reproduce.
+              of them a wallet. Export the encrypted state, then import it in a compatible browser
+              using the same PRF-enabled passkey. Recovery uses the same PRF-enabled passkey and the complete encrypted export.
             </li>
             <li>
               <Link href="/protocol">Read the protocol index</Link>. Realised loss ratio, mean
@@ -79,8 +92,8 @@ export default async function JudgesPage() {
         </div>
         <div className="panel-body">
           <p className="prose" style={{ fontSize: 13.5, marginBottom: 16 }}>
-            The settlement asset is freely mintable on testnet, so you can fund yourself and buy
-            real coverage. Gas comes from the Monad faucet.
+            The settlement asset is freely mintable on testnet, so you can fund yourself and exercise
+            the testnet coverage flow. Gas comes from the Monad faucet.
           </p>
           <Faucet deployment={d} />
           <p className="prose" style={{ fontSize: 13.5, marginTop: 18, marginBottom: 0 }}>
@@ -101,10 +114,10 @@ export default async function JudgesPage() {
           <pre>
             <code>{`git clone https://github.com/Marc-Dvci/BACKSTOP && cd BACKSTOP
 make install
-make test        # 64 contract tests, 7 invariants, the differential suite
+make test        # contract, replay, passkey and arithmetic checks
 make ci-audit    # the CLI catching a substitution, no chain and no key needed
 make demo        # the whole protocol end to end on a local chain
-make gate-zero   # the lifetime Type-I bound, measured
+make gate-zero   # known-law null simulation
 make replay-live # recompute the live crossing from its published record alone
 make replay      # recompute a seeded verdict, checked against the AuditRegistry
 make indexer     # the self-hosted index over this deployment, GraphQL on :8080`}</code>
@@ -126,16 +139,15 @@ make indexer     # the self-hosted index over this deployment, GraphQL on :8080`
           <p>
             <code>make ci-audit</code> is the one that needs nothing at all: no chain, no API key
             and no GPU. It serves the probe battery from the laws measured off a real open-weight
-            model, runs the published CLI against it at the attested precision and at the
-            substituted one, and asserts both verdicts. The substitution crosses at round 2, which
-            is where the live llama.cpp run crossed too.
+            model, runs the built CLI against it at the attested precision and at the
+            substituted one, and asserts both verdicts. The deterministic reference fixture crosses at round 2. The actual model experiment crosses at round 5, after the switch at round 3.
           </p>
           <p style={{ marginBottom: 0 }}>
-            <code>make demo</code> stands up a chain with Monad&rsquo;s P256 precompile at{" "}
-            <code>0x0100</code>, deploys the six contracts, buys policies with real passkey
-            assertions, runs the audit over behaviour measured from a real open-weight model at two
-            quantisations, switches the endpoint partway through, and settles the cohort in one
-            transaction.
+            <code>make demo</code> starts Anvil with a local P256 verifier stub at{" "}
+            <code>0x0100</code>, deploys the contracts and buys policies with software-generated
+            WebAuthn assertions. It draws simulated observations from the measured laws, switches
+            the serving configuration and settles the cohort in one transaction. Genuine signed
+            assertions and rejection cases are checked separately in the contract suite.
           </p>
         </div>
       </div>

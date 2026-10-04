@@ -23,7 +23,7 @@ import {IERC20} from "./interfaces/IERC20.sol";
  *   4. This contract recomputes that quantity under BSA-1 from the committed material and
  *      compares it against what the issuer published.
  *   5. The loser's bond goes to the winner. A successful challenge disputes the round and
- *      suspends the version.
+ *      freezes new coverage on the version.
  *
  * Redemption never trusts the claim root. Each redemption re-derives the crossing from the
  * cumulative logs the AuditRegistry holds, so a claim root that over-includes pays nobody it
@@ -79,6 +79,9 @@ contract Settlement {
 
     /// @notice versionId => round => state of the published verdict.
     mapping(uint256 => mapping(uint32 => RoundVerdictState)) public verdictState;
+    /// @notice One plus the earliest disputed round; zero means no dispute. Used to prevent
+    /// any later cumulative log from laundering a disputed increment, in constant time.
+    mapping(uint256 => uint64) public firstDisputedRoundPlusOne;
 
     /// @notice versionId => round => claim root published for the batch path.
     mapping(uint256 => mapping(uint32 => bytes32)) public claimRoot;
@@ -88,6 +91,7 @@ contract Settlement {
     mapping(uint256 => bool) public redeemed;
 
     event IssuerBonded(uint256 indexed versionId, address indexed issuer, uint256 amount);
+    event IssuerBondWithdrawn(uint256 indexed versionId, address indexed issuer, uint256 amount);
     event ClaimRootPublished(uint256 indexed versionId, uint32 indexed round, bytes32 root, address proposer);
     event ChallengeUpheld(
         uint256 indexed versionId, uint32 indexed round, address indexed challenger, string quantity, uint256 award
@@ -109,6 +113,9 @@ contract Settlement {
     error TransferFailed();
     error RootAlreadyPublished();
     error BadProof();
+    error NotVersionIssuer();
+    error BondStillLocked();
+    error InvalidBondAmount();
 
     modifier onlyGovernance() {
         if (msg.sender != governance) revert NotGovernance();
@@ -141,9 +148,24 @@ contract Settlement {
 
     /// @notice Post a bond against a version's published verdicts. Anyone may top it up.
     function bondIssuer(uint256 versionId, uint256 amount) external {
+        if (amount == 0) revert InvalidBondAmount();
+        address issuer = attestations.issuerOf(versionId);
         if (!asset.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
         issuerBond[versionId] += amount;
-        emit IssuerBonded(versionId, attestations.issuerOf(versionId), amount);
+        emit IssuerBonded(versionId, issuer, amount);
+    }
+
+    /// @notice Recover collateral after every committed round closes and its challenge
+    /// window passes. Retirement alone never releases a bond against future verdicts.
+    /// Top-ups and rejected challenger stakes belong to the version's recorded issuer.
+    function withdrawIssuerBond(uint256 versionId, uint256 amount) external {
+        if (msg.sender != attestations.issuerOf(versionId)) revert NotVersionIssuer();
+        uint32 cap = attestations.stats(versionId).tMax;
+        if (audits.closedRounds(versionId) != cap || !isFinal(versionId, cap - 1)) revert BondStillLocked();
+        if (amount == 0 || amount > issuerBond[versionId]) revert InvalidBondAmount();
+        issuerBond[versionId] -= amount;
+        if (!asset.transfer(msg.sender, amount)) revert TransferFailed();
+        emit IssuerBondWithdrawn(versionId, msg.sender, amount);
     }
 
     // ---------------------------------------------------------------- claim roots
@@ -171,6 +193,10 @@ contract Settlement {
         AuditRegistry.Round memory r = audits.getRound(versionId, round);
         if (r.state != AuditRegistry.RoundState.Closed) return false;
         if (verdictState[versionId][round] == RoundVerdictState.Disputed) return false;
+        // Cumulative logs include every earlier round. A later truthful round cannot make
+        // an earlier disputed increment authoritative again.
+        uint64 firstDisputed = firstDisputedRoundPlusOne[versionId];
+        if (firstDisputed != 0 && firstDisputed <= uint64(round) + 1) return false;
         return block.timestamp >= uint256(r.closedAt) + challengeWindow;
     }
 
@@ -207,6 +233,7 @@ contract Settlement {
         _takeChallengerBond();
 
         if (_cellMatches(versionId, claim, auditedCounts, referenceCounts, calibration)) {
+            issuerBond[versionId] += challengerBond;
             emit ChallengeRejected(versionId, claim.round, msg.sender);
             return;
         }
@@ -259,6 +286,7 @@ contract Settlement {
             Verdict.jsd(Verdict.empirical(_toMemory(blockCounts)), Verdict.empirical(_toMemory(referenceCounts)));
 
         if (recomputed == claim.statisticRay) {
+            issuerBond[versionId] += challengerBond;
             emit ChallengeRejected(versionId, round, msg.sender);
             return;
         }
@@ -319,6 +347,10 @@ contract Settlement {
 
     function _uphold(uint256 versionId, uint32 round, string memory quantity) private {
         verdictState[versionId][round] = RoundVerdictState.Disputed;
+        uint64 marker = uint64(round) + 1;
+        if (firstDisputedRoundPlusOne[versionId] == 0 || marker < firstDisputedRoundPlusOne[versionId]) {
+            firstDisputedRoundPlusOne[versionId] = marker;
+        }
 
         uint256 bond = issuerBond[versionId];
         issuerBond[versionId] = 0;
@@ -363,6 +395,7 @@ contract Settlement {
         uint256 gasBefore = gasleft();
         for (uint256 i = 0; i < policyIds.length; i++) {
             if (redeemed[policyIds[i]]) continue;
+            if (policies.policy(policyIds[i]).versionId != versionId) revert NotClaimable();
             if (!policies.claimable(policyIds[i], round)) continue;
             redeem(policyIds[i], round);
             settled += 1;

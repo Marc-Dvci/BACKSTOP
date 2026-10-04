@@ -43,6 +43,7 @@ export function VaultDemo({ rpId }: { rpId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [credId, setCredId] = useState<ArrayBuffer | undefined>(undefined);
+  const [portable, setPortable] = useState("");
 
   const guard = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -63,6 +64,7 @@ export function VaultDemo({ rpId }: { rpId: string }) {
         rpName: "BACKSTOP vault",
         userName: "vault",
         userDisplayName: "BACKSTOP vault",
+        enablePrf: true,
       });
       setCredId(cred.rawId);
     });
@@ -107,7 +109,9 @@ export function VaultDemo({ rpId }: { rpId: string }) {
 
   const seal = () =>
     guard(async () => {
-      setSealed(await sealVault(rpId, SAMPLE, credId));
+      const value = await sealVault(rpId, { ...SAMPLE, updatedAt: Math.floor(Date.now() / 1000) }, credId);
+      setSealed(value);
+      setPortable(JSON.stringify(value));
       setOpened(null);
     });
 
@@ -123,6 +127,16 @@ export function VaultDemo({ rpId }: { rpId: string }) {
       const b = await blindingFactor(rpId, digest, credId);
       setCommitment({ blinding: b, commitment: await policyCommitment(digest, b) });
     });
+
+  const importVault = () => guard(async () => {
+    if (portable.length > 100_000) throw new Error("Vault export is too large.");
+    const value = JSON.parse(portable) as SealedVault;
+    if (value.namespace !== NAMESPACE.vault || typeof value.iv !== "string" || typeof value.ciphertext !== "string") {
+      throw new Error("Paste a BACKSTOP claim vault export containing namespace, iv and ciphertext.");
+    }
+    setSealed(value);
+    setOpened(await openVault(rpId, value));
+  });
 
   const sealBytes = () =>
     guard(async () => {
@@ -202,6 +216,12 @@ export function VaultDemo({ rpId }: { rpId: string }) {
                 Open on this device
               </button>
             </div>
+            <label className="hint" htmlFor="vault-export">Portable encrypted record · copy the entire export to your second device</label>
+            <textarea id="vault-export" value={portable} onChange={(e) => setPortable(e.target.value)}
+              rows={4} spellCheck={false} style={{ width: "100%", margin: "8px 0 12px", fontFamily: "var(--mono)", fontSize: 11 }} />
+            <button className="btn" onClick={importVault} disabled={busy || !portable.trim()} style={{ marginBottom: 14 }}>
+              Import and open with an existing passkey
+            </button>
             {sealed && (
               <pre
                 style={{
@@ -247,7 +267,8 @@ export function VaultDemo({ rpId }: { rpId: string }) {
               A buyer who wants to prove they held a policy before a crossing publishes
               H(policyDigest ‖ blinding) at inception and opens it later. The blinding factor is
               derived from the blinding namespace at the policy digest, so the commitment
-              reproduces on any device and a lost device loses nothing.
+              reproduces wherever that same PRF-capable passkey is available. This panel demonstrates
+              the commitment calculation; publishing it at inception is a separate integration.
             </p>
             <button className="btn" onClick={commit} disabled={busy}>
               Derive and commit

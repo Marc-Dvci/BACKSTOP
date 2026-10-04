@@ -6,7 +6,7 @@
  * point and a signature over the domain-bound policy digest.
  */
 
-import type { Hex } from "viem";
+import { keccak256, type Hex } from "viem";
 
 export interface CreatedCredential {
   credentialId: Hex;
@@ -17,6 +17,9 @@ export interface CreatedCredential {
 
 const toHex = (b: Uint8Array): Hex =>
   `0x${Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("")}` as Hex;
+
+/** WebAuthn IDs have variable length; the registry key is always bytes32. */
+export const credentialKey = (rawId: ArrayBuffer): Hex => keccak256(new Uint8Array(rawId));
 
 const fromB64Url = (s: string): Uint8Array => {
   const pad = s.replace(/-/g, "+").replace(/_/g, "/");
@@ -33,6 +36,7 @@ export async function createCredential(opts: {
   rpName: string;
   userName: string;
   userDisplayName: string;
+  enablePrf?: boolean;
 }): Promise<CreatedCredential> {
   const challenge = crypto.getRandomValues(new Uint8Array(32));
   const cred = (await navigator.credentials.create({
@@ -46,18 +50,22 @@ export async function createCredential(opts: {
       },
       // -7 is ES256 over P-256, the curve Monad's precompile verifies.
       pubKeyCredParams: [{ type: "public-key", alg: -7 }],
-      authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
+      authenticatorSelection: { residentKey: "required", userVerification: "required" },
+      ...(opts.enablePrf ? { extensions: { prf: {} } as AuthenticationExtensionsClientInputs } : {}),
       attestation: "none",
       timeout: 120_000,
     },
   })) as PublicKeyCredential | null;
 
   if (!cred) throw new Error("the authenticator returned no credential");
+  if (opts.enablePrf && !(cred.getClientExtensionResults() as { prf?: { enabled?: boolean } }).prf?.enabled) {
+    throw new Error("This passkey does not support PRF. Use a PRF-capable authenticator to create a vault passkey.");
+  }
   const response = cred.response as AuthenticatorAttestationResponse;
   const { x, y } = decodeCosePublicKey(new Uint8Array(response.getPublicKey() as ArrayBuffer));
 
   return {
-    credentialId: toHex(new Uint8Array(cred.rawId)),
+    credentialId: credentialKey(cred.rawId),
     rawId: cred.rawId,
     x,
     y,

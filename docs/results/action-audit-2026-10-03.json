@@ -1,0 +1,90 @@
+{
+  "bashSyntax": "all run steps passed",
+  "cases": [
+    {
+      "case": "clean",
+      "expectedExit": 0,
+      "exit": 0,
+      "passed": true
+    },
+    {
+      "case": "cross",
+      "expectedExit": 1,
+      "exit": 1,
+      "passed": true
+    },
+    {
+      "case": "cross-observe",
+      "expectedExit": 0,
+      "exit": 0,
+      "passed": true
+    },
+    {
+      "case": "missing",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "incomplete",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "unexpected",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "cross-mismatch",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "false-mismatch",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "bad-schema",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "number-log",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "false-with-crossing",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "invalid-policy",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "unsafe-report",
+      "expectedExit": 2,
+      "exit": 2,
+      "passed": true
+    },
+    {
+      "case": "literal-input",
+      "expectedExit": 0,
+      "exit": 0,
+      "passed": true
+    }
+  ],
+  "scope": "Local Bash execution and adversarial CLI/report fixtures; not a GitHub-hosted run."
+}

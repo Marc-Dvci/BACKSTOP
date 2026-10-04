@@ -1,0 +1,212 @@
+{
+  "rounds": [
+    {
+      "round": 0,
+      "seed": "0x3c8017f39b9338eb0cd6d3462eff49f21f50cefb96a599261c68f28e853aef57",
+      "cells": [
+        "letter.zh",
+        "digit.es",
+        "digit.zh",
+        "letter.es",
+        "letter.fr",
+        "digit.fr",
+        "digit.en",
+        "letter.en"
+      ],
+      "eRoundRay": "1430785094736135941140189598",
+      "logMRay": "358223310914955216930171824"
+    },
+    {
+      "round": 1,
+      "seed": "0xedf7e5223960544f55106bcf68b2fecd2f6de41760967c51ff447f524b7ae73a",
+      "cells": [
+        "digit.zh",
+        "digit.en",
+        "letter.es",
+        "letter.en",
+        "digit.es",
+        "letter.fr",
+        "digit.fr",
+        "letter.zh"
+      ],
+      "eRoundRay": "681702806009986722972573913",
+      "logMRay": "-24938173512126136011647222"
+    },
+    {
+      "round": 2,
+      "seed": "0xae0fb2e30e383b2f3b944cebea55d9e9883759298bfaca54440ce4c6be587c93",
+      "cells": [
+        "digit.zh",
+        "digit.en",
+        "digit.fr",
+        "letter.zh",
+        "letter.en",
+        "digit.es",
+        "letter.fr",
+        "letter.es"
+      ],
+      "eRoundRay": "867842082524990053057080444",
+      "logMRay": "-166683686960547738663531402"
+    },
+    {
+      "round": 3,
+      "seed": "0xbb1c43e7f5fd6721dedd88bc49350b491d3379481f097d23e3b99e37fa65a446",
+      "cells": [
+        "digit.fr",
+        "digit.en",
+        "letter.fr",
+        "digit.zh",
+        "letter.en",
+        "letter.es",
+        "letter.zh",
+        "digit.es"
+      ],
+      "eRoundRay": "947857332290423683188794253",
+      "logMRay": "-220234968377457615655740891"
+    },
+    {
+      "round": 4,
+      "seed": "0xfa2027374e29baa8e30767516b09259ba0945619f5c3739f9038deb2d4e42eb1",
+      "cells": [
+        "digit.zh",
+        "letter.es",
+        "letter.en",
+        "digit.en",
+        "digit.fr",
+        "digit.es",
+        "letter.fr",
+        "letter.zh"
+      ],
+      "eRoundRay": "748958696258412586836784809",
+      "logMRay": "-509306410545286356171525902"
+    },
+    {
+      "round": 5,
+      "seed": "0x279cf4b29cd8cf103cabfa10e2e14cd677dbf6d240a0c3257c4692f20505ad01",
+      "cells": [
+        "letter.zh",
+        "digit.fr",
+        "digit.zh",
+        "letter.fr",
+        "digit.es",
+        "letter.es",
+        "letter.en",
+        "digit.en"
+      ],
+      "eRoundRay": "583212803741161392767779726",
+      "logMRay": "-1048509554785281368547101750"
+    },
+    {
+      "round": 6,
+      "seed": "0x91044cd3a35cee94e175a7de9dad3d2eae9bf99ea2ca5ed38133c90f2dc5ee03",
+      "cells": [
+        "digit.en",
+        "digit.zh",
+        "letter.fr",
+        "letter.en",
+        "letter.es",
+        "digit.fr",
+        "digit.es",
+        "letter.zh"
+      ],
+      "eRoundRay": "3941728751912617206510223963",
+      "logMRay": "323109841814331497032857808"
+    },
+    {
+      "round": 7,
+      "seed": "0xb6bb5d2c8b6f0649b4e397f7583261197fe29a229f4bcdb2d7f09916747cfb8a",
+      "cells": [
+        "letter.en",
+        "digit.zh",
+        "digit.fr",
+        "letter.fr",
+        "digit.es",
+        "letter.es",
+        "letter.zh",
+        "digit.en"
+      ],
+      "eRoundRay": "4125428010245632013818676554",
+      "logMRay": "1740279616277820316967383050"
+    },
+    {
+      "round": 8,
+      "seed": "0x68a606202d28385dba9b4ac3e16330e7e644b31bde6a9ccdfa62da76ca14b7ec",
+      "cells": [
+        "letter.zh",
+        "digit.fr",
+        "letter.fr",
+        "letter.es",
+        "digit.en",
+        "letter.en",
+        "digit.es",
+        "digit.zh"
+      ],
+      "eRoundRay": "2967859152521566423661894001",
+      "logMRay": "2828120485107037049990435887"
+    },
+    {
+      "round": 9,
+      "seed": "0xae5f94cf26a7d0a8fd4e96bfc83d0b3194cbd40c80fcf732cf2b17dcacb683b4",
+      "cells": [
+        "digit.zh",
+        "letter.en",
+        "digit.fr",
+        "digit.en",
+        "letter.fr",
+        "digit.es",
+        "letter.es",
+        "letter.zh"
+      ],
+      "eRoundRay": "3865434316480643589244701324",
+      "logMRay": "4180194532497014508491615746"
+    }
+  ],
+  "crossedAt": 9,
+  "boundaryRay": "2995732273553990945787930126",
+  "traces": {
+    "primary": [
+      "358223310914955216930171824",
+      "-24938173512126136011647222",
+      "-166683686960547738663531402",
+      "-220234968377457615655740891",
+      "-509306410545286356171525902",
+      "-1048509554785281368547101750",
+      "323109841814331497032857808",
+      "1740279616277820316967383050",
+      "2828120485107037049990435887",
+      "4180194532497014508491615746"
+    ],
+    "control": [
+      "-576261702103029715323466015",
+      "-448614651109476757465591216",
+      "-692878229598155351187261342",
+      "-1060339163407525763868346483",
+      "-1430237464288129616798984644",
+      "-1582002612688573274061797276",
+      "-2018094202295184094593771719",
+      "-2147006047171315332229447957",
+      "-2114370339957199083476229209",
+      "-2390653439921508204376332335"
+    ],
+    "benign": [
+      "-288783114947520776011718559",
+      "-687162691067776344335400971",
+      "-920002737605492386795248883",
+      "-1046903829874051672133220489",
+      "-1211693176547061233391987097",
+      "-1665246182418372998974894712",
+      "-2096065119274425013654563571",
+      "-2195396028507002435785805705",
+      "-2554137640865127978394556574",
+      "-2253504539275181756212760255"
+    ]
+  },
+  "lawSource": "Qwen3-1.7B measured at bf16, q8_0, q4km",
+  "params": {
+    "m": 99,
+    "n": 96,
+    "cellsPerRound": 8,
+    "alpha": 0.05,
+    "tMax": 40
+  }
+}

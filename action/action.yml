@@ -27,13 +27,17 @@ inputs:
     required: false
     default: "1"
   draws:
-    description: "Draws per cell per round. The detection floor moves with this."
+    description: "Optional consistency check; must equal the attestation's committed n."
     required: false
-    default: "96"
+    default: ""
   report:
     description: "Where to write the machine-readable verdict."
     required: false
     default: "backstop-verdict.json"
+  campaign-state:
+    description: "Optional restored campaign JSON. Serialize jobs and retain the updated file to continue one lifetime across runs."
+    required: false
+    default: ""
   fail-on-cross:
     description: >-
       Fail the job when the evidence crosses the precommitted boundary. Set to false to record
@@ -106,6 +110,14 @@ runs:
         BACKSTOP_API_KEY: ${{ inputs.api-key }}
         BACKSTOP_CLI: ${{ steps.build.outputs.root }}/packages/cli/dist/index.js
         REPORT: ${{ inputs.report }}
+        ATTESTATION: ${{ inputs.attestation }}
+        POOL: ${{ inputs.pool }}
+        ROUNDS: ${{ inputs.rounds }}
+        DRAWS: ${{ inputs.draws }}
+        BASE_URL: ${{ inputs.base-url }}
+        MODEL: ${{ inputs.model }}
+        CAMPAIGN_STATE: ${{ inputs.campaign-state }}
+        FAIL_ON_CROSS: ${{ inputs.fail-on-cross }}
       run: |
         # GitHub invokes a composite run step with `bash -e`, and the CLI's exit code is the
         # verdict rather than a failure, so `-e` has to go before the audit runs. Every exit
@@ -113,37 +125,53 @@ runs:
         set +e
         set -uo pipefail
 
-        args=(audit
-          --attestation "${{ inputs.attestation }}"
-          --pool "${{ inputs.pool }}"
-          --rounds "${{ inputs.rounds }}"
-          --draws "${{ inputs.draws }}"
-          --json "$REPORT")
+        if [ "$FAIL_ON_CROSS" != "true" ] && [ "$FAIL_ON_CROSS" != "false" ]; then
+          echo "::error::fail-on-cross must be true or false"
+          exit 2
+        fi
+
+        if [[ "$REPORT" == *$'\n'* || "$REPORT" == *$'\r'* || "$REPORT" == /* || "$REPORT" == *..* || -z "$REPORT" ]]; then
+          echo "::error::report must be a relative workspace path without parent traversal or newlines"
+          exit 2
+        fi
+        rm -f -- "$REPORT"
+        args=(audit --attestation "$ATTESTATION" --pool "$POOL" --rounds "$ROUNDS" --json "$REPORT")
+        [ -n "$DRAWS" ] && args+=(--draws "$DRAWS")
         # An empty base-url or model means "use what the attestation names", which is the
         # common case: the attestation already pins the endpoint it was measured against.
-        [ -n "${{ inputs.base-url }}" ] && args+=(--base-url "${{ inputs.base-url }}")
-        [ -n "${{ inputs.model }}" ] && args+=(--model "${{ inputs.model }}")
+        [ -n "$BASE_URL" ] && args+=(--base-url "$BASE_URL")
+        [ -n "$MODEL" ] && args+=(--model "$MODEL")
+        [ -n "$CAMPAIGN_STATE" ] && args+=(--state "$CAMPAIGN_STATE")
 
         node "$BACKSTOP_CLI" "${args[@]}"
         code=$?
-
-        echo "report=$REPORT" >> "$GITHUB_OUTPUT"
-        if [ -f "$REPORT" ]; then
-          read -r crossed logm at <<<"$(node -e '
-            const r = require("node:fs").readFileSync(process.env.REPORT, "utf8");
-            const v = JSON.parse(r);
-            console.log(v.crossed, v.logMRay, v.crossedAt ?? "-");
-          ')"
-          [ "$at" = "-" ] && at=""
-          echo "crossed=$crossed" >> "$GITHUB_OUTPUT"
-          echo "log-m=$logm" >> "$GITHUB_OUTPUT"
-          echo "crossed-at=$at" >> "$GITHUB_OUTPUT"
-        else
-          echo "crossed=" >> "$GITHUB_OUTPUT"
-          echo "log-m=" >> "$GITHUB_OUTPUT"
-          echo "crossed-at=" >> "$GITHUB_OUTPUT"
-          at=""
+        if [ "$code" != "0" ] && [ "$code" != "1" ]; then
+          echo "::error::the audit could not complete (exit $code)"
+          exit 2
         fi
+        if [ ! -f "$REPORT" ]; then
+          echo "::error::the audit did not produce a verdict"
+          exit 2
+        fi
+
+        verdict="$(node -e '
+          const fs = require("node:fs");
+          const v = JSON.parse(fs.readFileSync(process.env.REPORT, "utf8"));
+          if (typeof v.crossed !== "boolean" || typeof v.logMRay !== "string" || !/^-?\d+$/.test(v.logMRay)
+            || (v.crossed && (!Number.isSafeInteger(v.crossedAt) || v.crossedAt < 0))
+            || (!v.crossed && v.crossedAt != null)) process.exit(2);
+          console.log(v.crossed, v.logMRay, v.crossedAt ?? "-");
+        ')" || { echo "::error::invalid audit verdict"; exit 2; }
+        read -r crossed logm at <<<"$verdict"
+        if { [ "$code" = "0" ] && [ "$crossed" != "false" ]; } || { [ "$code" = "1" ] && [ "$crossed" != "true" ]; }; then
+          echo "::error::CLI exit code and verdict disagree"
+          exit 2
+        fi
+        [ "$at" = "-" ] && at=""
+        echo "report=$REPORT" >> "$GITHUB_OUTPUT"
+        echo "crossed=$crossed" >> "$GITHUB_OUTPUT"
+        echo "log-m=$logm" >> "$GITHUB_OUTPUT"
+        echo "crossed-at=$at" >> "$GITHUB_OUTPUT"
 
         # Exit 2 is "the run could not complete" and always fails the job: a job that goes
         # green because the endpoint was unreachable is the failure mode this action exists to
@@ -155,7 +183,7 @@ runs:
         fi
         if [ "$code" = "1" ]; then
           echo "::error::the endpoint has departed from the envelope its attestation committed to (crossed at round $at)"
-          if [ "${{ inputs.fail-on-cross }}" = "true" ]; then exit 1; fi
+          if [ "$FAIL_ON_CROSS" = "true" ]; then exit 1; fi
         fi
         exit 0
 
@@ -163,32 +191,40 @@ runs:
       if: always()
       shell: bash
       working-directory: ${{ github.workspace }}
+      env:
+        REPORT: ${{ inputs.report }}
+        CROSSED: ${{ steps.audit.outputs.crossed }}
+        CROSSING_ROUND: ${{ steps.audit.outputs.crossed-at }}
+        ROUNDS: ${{ inputs.rounds }}
+        ATTESTATION: ${{ inputs.attestation }}
+        DRAWS: ${{ inputs.draws }}
+        LOG_M: ${{ steps.audit.outputs.log-m }}
       run: |
         {
           echo "### BACKSTOP audit"
           echo ""
-          if [ -f "${{ inputs.report }}" ]; then
-            if [ "${{ steps.audit.outputs.crossed }}" = "true" ]; then
-              echo "**Crossed** at round ${{ steps.audit.outputs.crossed-at }}. The endpoint has departed from the envelope its attestation committed to."
+          if [ -n "$CROSSED" ]; then
+            if [ "$CROSSED" = "true" ]; then
+              echo "**Crossed** at round $CROSSING_ROUND. The endpoint has departed from the envelope its attestation committed to."
             else
-              echo "**Consistent** with the attested envelope over ${{ inputs.rounds }} round(s)."
+              echo "**No crossing observed** in the recorded campaign."
             fi
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| attestation | \`${{ inputs.attestation }}\` |"
-            echo "| rounds | ${{ inputs.rounds }} |"
-            echo "| draws per cell | ${{ inputs.draws }} |"
-            echo "| log M, RAY scale | \`${{ steps.audit.outputs.log-m }}\` |"
+            echo "| attestation | \`$ATTESTATION\` |"
+            echo "| rounds | $ROUNDS |"
+            echo "| draws per cell | ${DRAWS:-committed n} |"
+            echo "| log M, RAY scale | \`$LOG_M\` |"
           else
             echo "The audit produced no verdict."
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload the verdict
-      if: always() && inputs.upload-report == 'true'
+      if: always() && inputs.upload-report == 'true' && steps.audit.outputs.report != ''
       uses: actions/upload-artifact@v7
       with:
         name: backstop-verdict
-        path: ${{ inputs.report }}
+        path: ${{ steps.audit.outputs.report }}
         if-no-files-found: warn

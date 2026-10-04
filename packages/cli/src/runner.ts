@@ -63,7 +63,8 @@ export async function complete(cfg: EndpointConfig, probe: Probe): Promise<strin
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    return body.choices?.[0]?.message?.content ?? null;
+    const content = body.choices?.[0]?.message?.content;
+    return typeof content === "string" ? content : null;
   } catch {
     return null;
   } finally {

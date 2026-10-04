@@ -11,6 +11,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { Attestation } from "../src/attestation.js";
 import { CANONICAL_ARITHMETIC_SPEC, CANONICAL_ARITHMETIC_HASH } from "../src/version.js";
@@ -34,7 +35,7 @@ const doc = {
   ...schema,
 };
 
-const out = new URL("../schema/attestation-v1.json", import.meta.url);
-mkdirSync(dirname(out.pathname.slice(1)), { recursive: true });
+const out = fileURLToPath(new URL("../schema/attestation-v1.json", import.meta.url));
+mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, `${JSON.stringify(doc, null, 2)}\n`);
 console.log(`wrote packages/core/schema/attestation-v1.json`);

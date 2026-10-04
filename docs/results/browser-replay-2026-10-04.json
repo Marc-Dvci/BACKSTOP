@@ -1,0 +1,33 @@
+[
+  {
+    "width": 1440,
+    "case": "0",
+    "localReplay": "passed",
+    "modifiedCopy": "rejected",
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "case": "1",
+    "localReplay": "passed",
+    "modifiedCopy": "rejected",
+    "errors": []
+  },
+  {
+    "width": 390,
+    "case": "0",
+    "localReplay": "passed",
+    "modifiedCopy": "rejected",
+    "errors": []
+  },
+  {
+    "width": 390,
+    "case": "1",
+    "localReplay": "passed",
+    "modifiedCopy": "rejected",
+    "errors": []
+  },
+  {
+    "unavailableEvidence": "fails without a success result"
+  }
+]

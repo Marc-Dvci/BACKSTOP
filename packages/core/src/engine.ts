@@ -24,7 +24,6 @@ import {
   accumulate,
   villeBoundary,
   voidEValue,
-  LOG_FLOOR,
   type Distribution,
 } from "./stats.js";
 import { findCell, fingerprintDistribution, sliceSchedule, type ReferencePool } from "./pool.js";
@@ -149,6 +148,15 @@ export function evaluateRound(
   params: EngineParams,
   cache?: PoolCache,
 ): RoundVerdict {
+  if (!Number.isSafeInteger(round) || round < 0 || round >= params.tMax) {
+    throw new Error("round is outside the committed lifetime");
+  }
+  if (!params.mixtureIds.length || new Set(params.mixtureIds).size !== params.mixtureIds.length) {
+    throw new Error("mixture elements must be non-empty and unique");
+  }
+  if (!observations.length || new Set(observations.map((o) => o.cellId)).size !== observations.length) {
+    throw new Error("observed cells must be non-empty and unique");
+  }
   const c = cache ?? new PoolCache(pool, params.poolRoot, params.m, params.tMax);
   const cells: CellVerdict[] = [];
 
@@ -195,12 +203,24 @@ export function evaluateRound(
 export class RunningProduct {
   logRay: bigint = 0n;
   crossedAt: number | null = null;
+  private nextRound: number;
 
   constructor(
     readonly alphaRay: bigint,
     /** First round whose evidence enters this product. */
     readonly startRound: number = 0,
-  ) {}
+  ) {
+    if (!Number.isSafeInteger(startRound) || startRound < 0) throw new Error("invalid product start round");
+    villeBoundary(alphaRay);
+    this.nextRound = startRound;
+  }
+
+  private consume(round: number): boolean {
+    if (!Number.isSafeInteger(round) || round < 0) throw new Error("invalid product round");
+    if (round < this.startRound) return false;
+    if (round !== this.nextRound) throw new Error("product rounds must be consecutive and consumed once");
+    return true;
+  }
 
   get boundaryRay(): bigint {
     return villeBoundary(this.alphaRay);
@@ -214,16 +234,17 @@ export class RunningProduct {
 
   /** Multiply this round's e-value into the product. */
   update(round: number, eRoundRay: bigint): void {
-    if (round < this.startRound) return;
+    if (!this.consume(round)) return;
     this.logRay = accumulate(this.logRay, eRoundRay);
+    this.nextRound++;
     if (this.crossedAt === null && this.logRay >= this.boundaryRay) this.crossedAt = round;
   }
 
   /** Log-space update, used by the replay path where ln E(t) is already published. */
   updateLog(round: number, logERoundRay: bigint): void {
-    if (round < this.startRound) return;
-    const next = this.logRay + logERoundRay;
-    this.logRay = next < LOG_FLOOR ? LOG_FLOOR : next;
+    if (!this.consume(round)) return;
+    this.logRay += logERoundRay;
+    this.nextRound++;
     if (this.crossedAt === null && this.logRay >= this.boundaryRay) this.crossedAt = round;
   }
 

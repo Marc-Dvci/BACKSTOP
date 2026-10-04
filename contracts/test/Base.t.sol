@@ -97,7 +97,7 @@ abstract contract Base is Test {
                 attestationDigest: keccak256("attestation/1"),
                 referencePoolRoot: keccak256("pool/1"),
                 probePoolRoot: keccak256("probes/1"),
-                seedChainRoot: keccak256("seedchain/1"),
+                seedChainRoot: keccak256(abi.encodePacked(seedShare(0))),
                 canonicalArithmeticHash: BSA1.specHash(),
                 normalizationImplHash: keccak256("backstop/normalize@1"),
                 batteryCommit: keccak256("battery/commit")
@@ -117,6 +117,8 @@ abstract contract Base is Test {
 
         vm.prank(governance);
         pool.setVersionEligible(versionId, true);
+        vm.prank(governance);
+        policies.setMinimumPremiumRate(versionId, 180);
     }
 
     /// @dev Deposit underwriter capital.
@@ -128,9 +130,14 @@ abstract contract Base is Test {
     }
 
     /// @dev Run one full round with a given round e-value.
+    function seedShare(uint32 round) internal pure returns (bytes32 share) {
+        share = keccak256("test/seed-secret");
+        for (uint32 i = round; i < T_MAX; i++) share = keccak256(abi.encodePacked(share));
+    }
+
     function runRound(uint256 versionId, uint32 round, int256 eRoundRay) internal {
         vm.startPrank(issuer);
-        audits.openRound(versionId, round, keccak256(abi.encode("share", round)), keccak256(abi.encode("beacon", round)), 24);
+        audits.openRound(versionId, round, seedShare(round), keccak256(abi.encode("beacon", round)), N_DRAWS * CELLS_PER_ROUND);
         audits.sealRound(versionId, round, keccak256(abi.encode("transcripts", round)), 0);
         audits.closeRound(versionId, round, keccak256(abi.encode("reveal", round)), eRoundRay);
         vm.stopPrank();

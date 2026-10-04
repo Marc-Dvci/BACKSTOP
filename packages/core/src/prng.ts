@@ -32,7 +32,7 @@ export class Prng {
 
   /** A uniform integer in [0, bound), rejection-sampled so the distribution is exact. */
   nextBelow(bound: number): number {
-    if (bound <= 0) throw new Error("bound must be positive");
+    if (!Number.isSafeInteger(bound) || bound <= 0 || bound > 0x100000000) throw new Error("bound must be a positive integer within the 32-bit stream");
     const limit = Math.floor(0x100000000 / bound) * bound;
     for (;;) {
       const v = this.nextU32();
@@ -42,6 +42,7 @@ export class Prng {
 
   /** A Fisher-Yates permutation of [0, n), drawn from this stream. */
   permutation(n: number): number[] {
+    if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) throw new Error("invalid permutation size");
     const a = Array.from({ length: n }, (_, i) => i);
     for (let i = n - 1; i > 0; i--) {
       const j = this.nextBelow(i + 1);
@@ -54,7 +55,7 @@ export class Prng {
 
   /** A uniform sample of `k` distinct values from [0, n), in permutation order. */
   sample(n: number, k: number): number[] {
-    if (k > n) throw new Error("sample larger than population");
+    if (!Number.isSafeInteger(k) || k < 0 || k > n) throw new Error("invalid sample size");
     return this.permutation(n).slice(0, k);
   }
 }

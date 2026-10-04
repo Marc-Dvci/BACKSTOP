@@ -20,8 +20,11 @@ export type Distribution = readonly bigint[];
  * RAY and the result is a deterministic function of the counts alone.
  */
 export function empirical(counts: readonly number[]): bigint[] {
+  if (counts.some((c) => !Number.isSafeInteger(c) || c < 0)) {
+    throw new BsaDomainError("counts must be non-negative safe integers");
+  }
   const n = counts.reduce((a, b) => a + b, 0);
-  if (n <= 0) throw new BsaDomainError("empirical distribution of an empty sample");
+  if (!Number.isSafeInteger(n) || n <= 0) throw new BsaDomainError("empirical distribution of an invalid or empty sample");
 
   const N = BigInt(n);
   const p = counts.map((c) => (BigInt(c) * RAY) / N);
@@ -142,15 +145,14 @@ export function combineCells(cellEValues: readonly bigint[]): bigint {
  * M(T) = product of E(t) for t <= T is a nonnegative test supermartingale, and Ville's
  * inequality gives P( exists T <= T_max : M(T) >= 1/alpha ) <= alpha.
  *
- * The product is accumulated as a sum of logarithms with a declared floor, so a long clean
- * run cannot underflow a fixed-point product into a spurious crossing.
+ * Logs are added without a floor. Raising a negative accumulated log would forgive earlier
+ * evidence, invalidate the product, and disagree with the Solidity cumulative logs.
  */
 export const LOG_FLOOR = -60n * RAY;
 
 export function accumulate(logM: bigint, roundE: bigint): bigint {
   if (roundE <= 0n) throw new BsaDomainError("non-positive round e-value");
-  const next = logM + ln(roundE);
-  return next < LOG_FLOOR ? LOG_FLOOR : next;
+  return logM + ln(roundE);
 }
 
 /** The Ville boundary in log space: ln(1 / alpha). */

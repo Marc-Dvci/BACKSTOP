@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createWalletClient, custom, type Address, type WalletClient } from "viem";
 import { monadTestnet } from "@backstop/sdk";
 
@@ -57,6 +57,16 @@ export function WalletProvider({
 export function InjectedWalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<Address | null>(null);
 
+  useEffect(() => {
+    const eth = (globalThis as { ethereum?: {
+      on?: (name: string, handler: (accounts: string[]) => void) => void;
+      removeListener?: (name: string, handler: (accounts: string[]) => void) => void;
+    } }).ethereum;
+    const changed = (accounts: string[]) => setAddress((accounts[0] as Address | undefined) ?? null);
+    eth?.on?.("accountsChanged", changed);
+    return () => eth?.removeListener?.("accountsChanged", changed);
+  }, []);
+
   const value = useMemo<WalletConnector>(
     () => ({
       source: "injected",
@@ -90,7 +100,16 @@ export async function ensureChain(client: WalletClient): Promise<void> {
   if (current === monadTestnet.id) return;
   try {
     await client.switchChain({ id: monadTestnet.id });
-  } catch {
+  } catch (error) {
+    // Cancelling a network switch must stop the flow, rather than open another prompt.
+    // viem can wrap the provider's EIP-1193 code inside one or more causes.
+    let cause: unknown = error;
+    let unknownChain = false;
+    for (let i = 0; i < 20 && cause && typeof cause === "object"; i++) {
+      if ("code" in cause && cause.code === 4902) { unknownChain = true; break; }
+      cause = "cause" in cause ? cause.cause : undefined;
+    }
+    if (!unknownChain) throw error;
     await client.addChain({ chain: monadTestnet });
     await client.switchChain({ id: monadTestnet.id });
   }

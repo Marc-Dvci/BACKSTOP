@@ -12,9 +12,8 @@
 name: backstop
 description: Capital-backed verification for hosted AI inference
 
-# `openRound` records the number of scheduled executions the round commits to, and the event
-# it emits does not carry it. The realised void rate is measured against that number, so the
-# calldata is selected and the argument decoded in the handler.
+# New deployments publish committed counts in VersionConfigured and RoundScheduled. Direct
+# historical openRound calldata remains a fallback; absent metadata is represented as unknown.
 field_selection:
   transaction_fields:
     - input
@@ -24,6 +23,7 @@ contracts:
     abi_file_path: abis/AttestationRegistry.json
     events:
       - event: VersionIssued
+      - event: VersionConfigured
       - event: VersionRetired
       - event: VersionSuspended
       - event: VersionResumed
@@ -32,6 +32,7 @@ contracts:
     abi_file_path: abis/AuditRegistry.json
     events:
       - event: RoundOpened
+      - event: RoundScheduled
       - event: RoundSealed
       - event: RoundClosed
   - name: PolicyRegistry

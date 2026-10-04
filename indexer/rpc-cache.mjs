@@ -27,6 +27,8 @@ const CACHE = process.env.RPC_CACHE_FILE ?? join(HERE, "rpc-cache.json");
 const UPSTREAMS = (process.env.RPC_UPSTREAMS ?? "https://10143.rpc.thirdweb.com,https://testnet-rpc.monad.xyz").split(",");
 const CHUNK = 1000n;
 const PORT = Number(process.argv[process.argv.indexOf("--port") + 1] || 8545);
+// Reproducible backfills can stop at the saved watermark without rescanning several days.
+const FROZEN = process.argv.includes("--frozen");
 
 // The contracts and the first block, read from the indexer's own config so the two cannot drift.
 const config = readFileSync(join(HERE, "config.yaml"), "utf8");
@@ -122,16 +124,21 @@ async function handle(req) {
     seen.add(req.method);
     console.log(`  first ${req.method} ${JSON.stringify(req.params).slice(0, 160)}`);
   }
+  if (FROZEN && req.method === "eth_blockNumber") return `0x${BigInt(cache.scannedTo).toString(16)}`;
   if (req.method === "eth_getLogs") {
     const f = req.params[0];
     const to = f.toBlock && f.toBlock !== "latest" ? BigInt(f.toBlock) : BigInt(cache.scannedTo);
-    if (to > BigInt(cache.scannedTo)) await scanToHead();
+    if (to > BigInt(cache.scannedTo)) {
+      if (FROZEN) throw new Error("requested logs exceed the frozen snapshot watermark");
+      await scanToHead();
+    }
     return cache.logs.filter((l) => matches(l, f));
   }
   return upstream(req.method, req.params);
 }
 
-if (process.argv.includes("--scan") || process.argv.includes("--serve")) await scanToHead();
+if (FROZEN && BigInt(cache.scannedTo) < START) throw new Error("frozen replay requires a populated cache");
+if (!FROZEN && (process.argv.includes("--scan") || process.argv.includes("--serve"))) await scanToHead();
 
 if (process.argv.includes("--serve")) {
   createServer(async (req, res) => {

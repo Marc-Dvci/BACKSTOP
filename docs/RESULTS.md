@@ -11,7 +11,7 @@ Raw run output and machine-readable results are in `docs/results/`.
 
 `make gate-zero` · `docs/results/gate-zero.json`
 
-The design is gated on this before any financial contract exists. Ville's inequality gives
+Under valid conditional e-values, Ville's inequality gives
 `P(∃T ≤ T_max : M(T) ≥ 1/α) ≤ α`, and the campaign measures the realised lifetime crossing rate
 against nominal α under a known null.
 
@@ -85,7 +85,7 @@ attestation is sized against the dilution its buyer wants covered, before covera
 | 0.10 | 512 | 4,096 | 1.000 | 6 | 0 / 60 |
 | 0.05 | 512 | 4,096 | 1.000 | 19 | 0 / 60 |
 
-The false-alarm control holds at every sample size.
+The table reports the measured power, delay and benign crossing rate at each sample size.
 
 ---
 
@@ -130,7 +130,7 @@ R(c,j) is estimated from a finite number of draws and carries its own sampling e
 error is comparable to the envelope width, the audit cannot separate a permitted configuration
 from a departure, and a clean endpoint crosses on the noise in its own reference.
 
-Issuance bounds that error by bootstrap and refuses when it exceeds 10% of the envelope width,
+The local issuance tool estimates reference uncertainty by bootstrap and refuses when that estimate exceeds 10% of the envelope width,
 printing the sample size required. This is the same class of precondition as the calibration
 granularity check `AttestationRegistry` enforces on chain: an attestation is sized before coverage
 is written, never after a claim.

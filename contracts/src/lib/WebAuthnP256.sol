@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {ClientDataJSON} from "./ClientDataJSON.sol";
+
 /**
  * @title WebAuthnP256
  * @notice The full WebAuthn assertion ceremony on top of Monad's P256 precompile.
@@ -61,22 +63,37 @@ library WebAuthnP256 {
         Credential memory cred
     ) internal view returns (bool) {
         if (a.authenticatorData.length < AUTH_DATA_MIN_LENGTH) return false;
+        bytes32 rpHash;
+        bytes memory authData = a.authenticatorData;
+        assembly ("memory-safe") { rpHash := mload(add(authData, 32)) }
+        if (rpHash != relyingPartyHash(origin)) return false;
 
         bytes1 flags = a.authenticatorData[32];
         if (flags & FLAG_USER_PRESENT != FLAG_USER_PRESENT) return false;
         if (requireUserVerification && flags & FLAG_USER_VERIFIED != FLAG_USER_VERIFIED) return false;
 
         bytes memory clientData = bytes(a.clientDataJSON);
-        if (!contains(clientData, bytes('"type":"webauthn.get"'))) return false;
-        if (!contains(clientData, abi.encodePacked('"origin":"', origin, '"'))) return false;
-        if (!contains(clientData, abi.encodePacked('"challenge":"', base64url(challenge), '"'))) {
-            return false;
-        }
+        if (!ClientDataJSON.matches(clientData, origin, base64url(challenge))) return false;
 
         if (a.s > P256_N_DIV_2) return false;
 
         bytes32 messageHash = sha256(abi.encodePacked(a.authenticatorData, sha256(clientData)));
         return verifySignature(messageHash, a.r, a.s, cred.x, cred.y);
+    }
+
+    /// @notice This deployment uses an RP ID equal to its origin hostname, including localhost.
+    /// Parent-domain and related-origin RP policies require an explicit RP configuration.
+    function relyingPartyHash(string memory origin) internal pure returns (bytes32) {
+        bytes memory url = bytes(origin);
+        uint256 start;
+        for (uint256 i = 0; i + 2 < url.length; i++) {
+            if (url[i] == ":" && url[i + 1] == "/" && url[i + 2] == "/") { start = i + 3; break; }
+        }
+        uint256 end = start;
+        while (end < url.length && url[end] != ":" && url[end] != "/") end++;
+        bytes memory host = new bytes(end - start);
+        for (uint256 i = 0; i < host.length; i++) host[i] = url[start + i];
+        return sha256(host);
     }
 
     /// @notice Raw call into the P256 precompile.

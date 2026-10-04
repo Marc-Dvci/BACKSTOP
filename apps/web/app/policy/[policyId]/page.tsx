@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EProcessChart, type Trace } from "@/components/EProcessChart";
-import { getEndpoint, getPolicies, getRounds } from "@/lib/data";
+import { getEndpoint, getPolicies, getRounds, dataSource } from "@/lib/data";
 import { formatRay, usdc, short, untilLabel, POLICY_STATUS } from "@/lib/format";
 
 // The index is a live view of chain state, so it is rendered per request rather than
@@ -13,6 +13,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ policyI
   const { policyId } = await params;
   const id = Number(policyId);
   const policies = await getPolicies();
+  const source = await dataSource();
   const policy = policies.find((p) => p.policyId === id);
   if (!policy) notFound();
 
@@ -38,6 +39,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ policyI
       label: `M_π for policy #${policy.policyId}, from round ${policy.startRound}`,
       color: "#f87171",
       points: policyPoints,
+      startRound: policy.startRound,
     },
   ];
 
@@ -52,6 +54,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ policyI
 
   return (
     <div style={{ padding: "36px 0" }}>
+      {source === "snapshot" && <p className="data-notice" role="status">Monad could not be read. This policy is from the bundled simulated local demonstration.</p>}
       <Link href="/pool" style={{ color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 12 }}>
         ← pool
       </Link>

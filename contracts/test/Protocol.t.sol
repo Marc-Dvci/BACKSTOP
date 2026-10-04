@@ -10,6 +10,7 @@ import {Settlement} from "../src/Settlement.sol";
 import {WebAuthnP256} from "../src/lib/WebAuthnP256.sol";
 import {BSA1} from "../src/lib/BSA1.sol";
 import {PasskeySigner} from "./helpers/PasskeySigner.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 /// @notice The whole lifecycle: attestation, coverage, audit rounds, crossing, payout.
 contract ProtocolTest is Base {
@@ -32,6 +33,53 @@ contract ProtocolTest is Base {
 
     // ---------------------------------------------------------------- attestation
 
+    function test_AnotherIssuerCannotSupersedeAnEndpoint() public {
+        address other = address(0xA110);
+        vm.prank(governance);
+        attestations.registerIssuer(other, 1825);
+        AttestationRegistry.IssueParams memory p = _params();
+        vm.prank(other);
+        vm.expectRevert(AttestationRegistry.NotVersionIssuer.selector);
+        attestations.issue(p);
+        assertEq(attestations.currentVersion(ENDPOINT), versionId);
+        assertEq(uint8(attestations.getVersion(versionId).status), uint8(AttestationRegistry.Status.Active));
+    }
+
+    function test_EndpointAuthoritySurvivesRetirement() public {
+        vm.prank(issuer);
+        attestations.retire(versionId, "new stack");
+        address other = address(0xA110);
+        vm.prank(governance);
+        attestations.registerIssuer(other, 1825);
+        AttestationRegistry.IssueParams memory p = _params();
+        vm.prank(other);
+        vm.expectRevert(AttestationRegistry.NotVersionIssuer.selector);
+        attestations.issue(p);
+        assertEq(attestations.endpointIssuer(ENDPOINT), issuer);
+        vm.prank(issuer);
+        uint256 replacement = attestations.issue(p);
+        assertEq(attestations.currentVersion(ENDPOINT), replacement);
+    }
+
+    function test_ParametersArePublishedForEventConsumers() public {
+        AttestationRegistry.IssueParams memory p = _params();
+        p.stats.alphaRay = BSA1.RAY / 10;
+        vm.recordLogs();
+        vm.prank(issuer);
+        uint256 replacement = attestations.issue(p);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool found;
+        for (uint256 i; i < logs.length; i++) {
+            if (logs[i].topics[0] == keccak256("VersionConfigured(uint256,int256,uint32)")) {
+                (int256 boundary, uint32 scheduled) = abi.decode(logs[i].data, (int256, uint32));
+                assertEq(boundary, attestations.boundaryRay(replacement));
+                assertEq(scheduled, p.stats.n * p.stats.cellsPerRound);
+                found = true;
+            }
+        }
+        assertTrue(found);
+    }
+
     function test_SettlementEligibilityPredicate() public {
         assertTrue(attestations.settlementEligible(versionId), "declared version is eligible");
 
@@ -44,6 +92,30 @@ contract ProtocolTest is Base {
         p.commitments.canonicalArithmeticHash = keccak256("some other arithmetic");
         vm.prank(issuer);
         vm.expectRevert(abi.encodeWithSelector(AttestationRegistry.BadParameters.selector, "canonical arithmetic"));
+        attestations.issue(p);
+    }
+
+    function test_IssuanceRequiresAFingerprintSample() public {
+        AttestationRegistry.IssueParams memory p = _params();
+        p.stats.nR = 0;
+        vm.prank(issuer);
+        vm.expectRevert(abi.encodeWithSelector(AttestationRegistry.BadParameters.selector, "sizes"));
+        attestations.issue(p);
+    }
+
+    function test_IssuanceRequiresAValidWarningLogarithm() public {
+        AttestationRegistry.IssueParams memory p = _params();
+        p.stats.warningRay = 0;
+        vm.prank(issuer);
+        vm.expectRevert(abi.encodeWithSelector(AttestationRegistry.BadParameters.selector, "warning"));
+        attestations.issue(p);
+    }
+
+    function test_IssuanceCannotPromiseAnOverflowingCampaign() public {
+        AttestationRegistry.IssueParams memory p = _params();
+        p.stats.n = type(uint32).max;
+        vm.prank(issuer);
+        vm.expectRevert(abi.encodeWithSelector(AttestationRegistry.BadParameters.selector, "lifetime executions"));
         attestations.issue(p);
     }
 
@@ -326,6 +398,102 @@ contract ProtocolTest is Base {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    function _purchaseTerms(PolicyRegistry.Terms memory t, bytes4 expectedRevert) internal returns (uint256) {
+        WebAuthnP256.Assertion memory a = PasskeySigner.sign(PASSKEY, policies.policyDigest(t), RP_ID, ORIGIN);
+        vm.startPrank(buyer);
+        usdc.approve(address(policies), type(uint256).max);
+        if (expectedRevert != bytes4(0)) vm.expectRevert(expectedRevert);
+        uint256 id = policies.purchase(t, a, CRED_ID, _quote());
+        vm.stopPrank();
+        return id;
+    }
+
+    function test_BuyerCannotChooseAFreePremium() public {
+        PolicyRegistry.Terms memory t = _terms(25_000e6, 801);
+        t.premiumRateBps = 0;
+        _purchaseTerms(t, PolicyRegistry.TermsMismatch.selector);
+    }
+
+    function test_BuyerCannotUndercutTheApprovedPremium() public {
+        PolicyRegistry.Terms memory t = _terms(25_000e6, 802);
+        t.premiumRateBps = 179;
+        _purchaseTerms(t, PolicyRegistry.NotWritable.selector);
+    }
+
+    function test_UnpricedVersionCannotSellCoverage() public {
+        vm.prank(governance);
+        policies.setMinimumPremiumRate(versionId, 0);
+        _purchaseTerms(_terms(25_000e6, 803), PolicyRegistry.NotWritable.selector);
+    }
+
+    function test_BuyerCannotRemoveCommittedSeasoning() public {
+        PolicyRegistry.Terms memory t = _terms(25_000e6, 804);
+        t.seasoningRounds = 0;
+        _purchaseTerms(t, PolicyRegistry.TermsMismatch.selector);
+    }
+
+    function test_ZeroTermIsRejected() public {
+        PolicyRegistry.Terms memory t = _terms(25_000e6, 805);
+        t.term = 0;
+        _purchaseTerms(t, PolicyRegistry.TermsMismatch.selector);
+    }
+
+    function test_NotionalCannotTruncateInStorage() public {
+        PolicyRegistry.Terms memory t = _terms(uint256(type(uint128).max) + 1, 806);
+        _purchaseTerms(t, PolicyRegistry.TermsMismatch.selector);
+    }
+
+    function test_PurchaseSkipsEvidenceFromAnAlreadyOpenedRound() public {
+        vm.prank(issuer);
+        audits.openRound(versionId, 0, seedShare(0), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND);
+        uint256 id = _buy(25_000e6, 807);
+        assertEq(policies.policy(id).startRound, SEASONING + 1);
+    }
+
+    function test_ExpiryCannotEraseAnUnredeemedCrossing() public {
+        uint256 id = _buy(25_000e6, 808);
+        runCleanRound(versionId, 0);
+        runCleanRound(versionId, 1);
+        runHotRound(versionId, 2);
+        runHotRound(versionId, 3);
+        runHotRound(versionId, 4);
+        skip(8 days);
+        vm.expectRevert(PolicyRegistry.UnredeemedCrossing.selector);
+        policies.expire(id);
+        assertEq(settlement.redeem(id, 4), 25_000e6);
+    }
+
+    function test_RoundCannotChooseAForeignSeedShare() public {
+        vm.prank(issuer);
+        vm.expectRevert(AuditRegistry.BadSeed.selector);
+        audits.openRound(versionId, 0, keccak256("uncommitted"), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND);
+    }
+
+    function test_RoundCannotVoidMoreThanWasScheduled() public {
+        vm.startPrank(issuer);
+        audits.openRound(versionId, 0, seedShare(0), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND);
+        vm.expectRevert(AuditRegistry.InvalidExecutionCounts.selector);
+        audits.sealRound(versionId, 0, keccak256("transcripts"), N_DRAWS * CELLS_PER_ROUND + 1);
+        vm.stopPrank();
+    }
+
+    function test_RoundCannotChangeTheCommittedSampleCount() public {
+        vm.prank(issuer);
+        vm.expectRevert(AuditRegistry.InvalidExecutionCounts.selector);
+        audits.openRound(versionId, 0, seedShare(0), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND - 1);
+    }
+
+    function test_PositivePremiumCannotRoundToZero() public {
+        uint256 id = _buy(1, 809);
+        assertEq(policies.policy(id).premiumEscrowed, 1);
+    }
+
+    function test_ExhaustedCoverageWindowCannotBePurchased() public {
+        PolicyRegistry.Terms memory t = _terms(25_000e6, 810);
+        t.seasoningRounds = T_MAX;
+        _purchaseTerms(t, PolicyRegistry.NotWritable.selector);
+    }
 
     function _buy(uint256 notional, uint256 nonce) internal returns (uint256 policyId) {
         PolicyRegistry.Terms memory t = _terms(notional, nonce);

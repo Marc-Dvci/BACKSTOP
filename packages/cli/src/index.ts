@@ -14,6 +14,7 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   RAY,
   formatRay,
@@ -30,6 +31,8 @@ import {
   CANONICAL_ARITHMETIC_HASH,
   DEFAULT_SAMPLING,
   samplingContractHash,
+  poolRoot,
+  digest,
   type WireSamplingContract,
   type Hex,
   type ReferencePool,
@@ -39,6 +42,7 @@ import {
 } from "@backstop/core";
 import { BackstopClient, deploymentFor, quote, monadTestnet } from "@backstop/sdk";
 import { DEFAULT_ENDPOINT, runRound, type EndpointConfig } from "./runner.js";
+import { campaignSelection, loadCampaign, lockCampaign, restoreCampaign, saveCampaign, type CampaignRound, type CampaignState } from "./campaign.js";
 
 const argv = process.argv.slice(2);
 const command = argv[0];
@@ -67,6 +71,7 @@ function usage(): never {
 
   backstop audit    --attestation <file> --pool <file> [--base-url <url>] [--model <slug>]
                     [--rounds <n>] [--draws <n>] [--api-key-env <VAR>] [--json <out>]
+                    [--state <campaign.json>] # continue the same lifetime across invocations
   backstop replay   --record <file> --attestation <file> [--pool <file>]
   backstop index    [--rpc <url>] [--chain <id>] [--version <id>]
   backstop quote    --notional <usd> --term-days <n> [--alpha <a>] [--power <p>] [--delay <rounds>]
@@ -85,6 +90,7 @@ interface AuditConfig {
   lambdaRay: bigint;
   m: number;
   n: number;
+  nR?: number;
   tMax: number;
   cellsPerRound: number;
   cellIds: string[];
@@ -99,7 +105,25 @@ interface AuditConfig {
 }
 
 function loadConfig(path: string): AuditConfig {
-  return JSON.parse(readFileSync(path, "utf8")) as AuditConfig;
+  const cfg = JSON.parse(readFileSync(path, "utf8")) as AuditConfig;
+  for (const key of ["version", "m", "n", "tMax", "cellsPerRound"] as const) {
+    if (!Number.isSafeInteger(cfg[key]) || cfg[key] <= 0) throw new Error(`invalid attestation ${key}`);
+  }
+  if (!cfg.cellIds?.length || new Set(cfg.cellIds).size !== cfg.cellIds.length || cfg.cellsPerRound > cfg.cellIds.length) {
+    throw new Error("attestation cells must be unique and cover cellsPerRound");
+  }
+  if (!cfg.mixtureIds?.length || new Set(cfg.mixtureIds).size !== cfg.mixtureIds.length) {
+    throw new Error("attestation mixture elements must be non-empty and unique");
+  }
+  for (const key of ["poolRoot", "seedChainRoot"] as const) {
+    if (!/^0x[0-9a-fA-F]{64}$/.test(cfg[key])) throw new Error(`invalid attestation ${key}`);
+  }
+  if (BigInt(cfg.lambdaRay) <= 0n || BigInt(cfg.lambdaRay) >= RAY) throw new Error("lambda must be in (0,1)");
+  villeBoundary(BigInt(cfg.alphaRay));
+  if (!cfg.sampling || !cfg.samplingContractHash || samplingContractHash(cfg.sampling).toLowerCase() !== cfg.samplingContractHash.toLowerCase()) {
+    throw new Error("sampling contract does not match its committed hash");
+  }
+  return cfg;
 }
 
 function loadPool(path: string): ReferencePool {
@@ -113,7 +137,7 @@ function bar(fraction: number, width = 32): string {
 
 // ---------------------------------------------------------------- audit
 
-async function cmdAudit(): Promise<never> {
+async function cmdAudit(): Promise<void> {
   const attestationPath = flag("attestation");
   const poolPath = flag("pool");
   if (!attestationPath || !poolPath) usage();
@@ -125,6 +149,16 @@ async function cmdAudit(): Promise<never> {
   const model = flag("model") ?? cfg.model;
   const rounds = num("rounds", 1);
   const draws = num("draws", cfg.n);
+  if (!Number.isSafeInteger(rounds) || rounds <= 0 || rounds > cfg.tMax) {
+    throw new Error("rounds must be a positive integer within the committed lifetime");
+  }
+  if (draws !== cfg.n) throw new Error("draws must equal attestation n; a different sample size needs a newly calibrated pool");
+  if (pool.n !== cfg.n || pool.m !== cfg.m || pool.tMax !== cfg.tMax || (cfg.nR !== undefined && pool.nR !== cfg.nR)) {
+    throw new Error("pool dimensions do not match the attestation");
+  }
+  if (poolRoot(pool).toLowerCase() !== cfg.poolRoot.toLowerCase()) throw new Error("reference pool does not match the committed root");
+  if (!/^0x[0-9a-fA-F]{64}$/.test(cfg.probeSeed)) throw new Error("audit requires a valid probe seed");
+  if (!/^https?:\/\//.test(baseUrl) || !model) throw new Error("audit requires an HTTP endpoint and a model");
   const apiKey = process.env[flag("api-key-env") ?? "BACKSTOP_API_KEY"];
 
   // The attestation pins the sampling contract. Sending anything else would make the audit
@@ -142,8 +176,35 @@ async function cmdAudit(): Promise<never> {
     mixtureIds: cfg.mixtureIds,
   };
   const cache = new PoolCache(pool, cfg.poolRoot, cfg.m, cfg.tMax);
-  const product = new RunningProduct(BigInt(cfg.alphaRay), 0);
+  const statePath = flag("state");
+  const reportPath = flag("json");
+  if (statePath && reportPath && [resolve(statePath), resolve(`${statePath}.lock`)].includes(resolve(reportPath))) {
+    throw new Error("report path must differ from the campaign state and lock");
+  }
+  const release = statePath ? lockCampaign(statePath) : () => {};
+  try {
+  const identity = { attestationHash: digest(cfg), endpoint: baseUrl, model };
+  const state: CampaignState = statePath ? loadCampaign(statePath, identity) : {
+    schema: "backstop/campaign@1", identity, rounds: [], inFlight: null, checksum: digest({}),
+  };
+  const product = restoreCampaign(state, pool, params, cfg.seedChainRoot, cfg.cellIds, cfg.cellsPerRound);
   const boundary = villeBoundary(BigInt(cfg.alphaRay));
+  const persist = () => { if (statePath) saveCampaign(statePath, state); };
+  const voidRound = (round: number, recovery: CampaignRound["recovery"]) => {
+    const selected = campaignSelection(cfg.seedChainRoot, round, cfg.cellIds, cfg.cellsPerRound);
+    const observations = selected.cells.map((cellId) => ({ cellId, voided: true,
+      counts: new Array(CELLS.find((cell) => cell.id === cellId)!.alphabet.length).fill(0) as number[] }));
+    const verdict = evaluateRound(round, observations, pool, params, cache);
+    product.update(round, verdict.eRoundRay);
+    state.rounds.push({ round, ...selected, observations, eRoundRay: verdict.eRoundRay.toString(), logMRay: product.logRay.toString(), recovery });
+    state.inFlight = null;
+    persist();
+  };
+  if (state.inFlight !== null) {
+    voidRound(state.inFlight, "interrupted");
+    console.log(c.yellow("  interrupted round retained as conservative void evidence; its slice will not be reused"));
+  }
+  if (!product.crossed && state.rounds.length + rounds > cfg.tMax) throw new Error("requested rounds exceed this campaign's remaining committed lifetime");
 
   console.log(c.bold(`\nBACKSTOP audit`));
   console.log(`  endpoint    ${baseUrl}`);
@@ -151,17 +212,15 @@ async function cmdAudit(): Promise<never> {
   console.log(`  attestation version ${cfg.version}, alpha ${formatRay(BigInt(cfg.alphaRay), 4)}`);
   console.log(`  envelope    ${cfg.mixtureIds.length} declared elements`);
   console.log(`  boundary    ln(1/alpha) = ${formatRay(boundary, 4)}\n`);
+  console.log(`  campaign    ${statePath ? `${statePath}, ${state.rounds.length} completed round(s)` : "new local campaign; use --state to retain evidence between jobs"}`);
 
-  const records: unknown[] = [];
+  const records = state.rounds;
+  const firstRound = records.length;
 
-  for (let round = 0; round < rounds; round++) {
-    const seed = roundSeed(
-      keccakString(`${cfg.seedChainRoot}|share|${round}`),
-      keccakString(`beacon|${round}`),
-    );
-    const selected = selectCells(seed, cfg.cellIds.length, cfg.cellsPerRound).map(
-      (i) => cfg.cellIds[i] as string,
-    );
+  for (let round = firstRound; !product.crossed && round < firstRound + rounds; round++) {
+    const { seed, cells: selected } = campaignSelection(cfg.seedChainRoot, round, cfg.cellIds, cfg.cellsPerRound);
+    state.inFlight = round;
+    persist();
 
     process.stdout.write(c.dim(`  round ${round}  cells ${selected.join(", ")}\n`));
 
@@ -174,10 +233,12 @@ async function cmdAudit(): Promise<never> {
       round,
       cfg.tMax,
     );
-    const failed = observations.filter((o) => o.errors > draws / 2);
+    const failed = observations.filter((o) => o.errors > 0 || o.unmatched > 0);
     if (failed.length > 0) {
-      console.error(c.red(`\n  the endpoint failed on ${failed.length} of ${selected.length} cells`));
-      process.exit(2);
+      voidRound(round, "incomplete");
+      console.error(c.red(`\n  incomplete sample on ${failed.length} of ${selected.length} cells; discarding missing responses would bias the test`));
+      process.exitCode = 2;
+      return;
     }
 
     const verdict = evaluateRound(
@@ -203,6 +264,8 @@ async function cmdAudit(): Promise<never> {
       eRoundRay: verdict.eRoundRay.toString(),
       logMRay: product.logRay.toString(),
     });
+    state.inFlight = null;
+    persist();
 
     if (product.crossed) break;
   }
@@ -221,6 +284,7 @@ async function cmdAudit(): Promise<never> {
           crossed: product.crossed,
           crossedAt: product.crossedAt,
           logMRay: product.logRay.toString(),
+          campaign: { schedule: "local-deterministic@1", persistent: Boolean(statePath), identity },
           rounds: records,
         },
         null,
@@ -235,10 +299,12 @@ async function cmdAudit(): Promise<never> {
       c.red(`\n  CROSSED at round ${product.crossedAt}. ` +
         `The evidence passed the boundary fixed before the audit began.\n`),
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
-  console.log(c.green(`\n  CONSISTENT with the attested envelope after ${rounds} round(s).\n`));
-  process.exit(0);
+  console.log(c.green(`\n  NO CROSSING OBSERVED after ${records.length} campaign round(s).\n`));
+  process.exitCode = 0;
+  } finally { release(); }
 }
 
 // ---------------------------------------------------------------- replay
@@ -257,6 +323,9 @@ function cmdReplay(): never {
   const pool = poolPath ? loadPool(poolPath) : undefined;
 
   const ctx: ReplayContext = {
+    attestationVersion: cfg.version,
+    n: cfg.n,
+    nR: cfg.nR,
     seedChainRoot: cfg.seedChainRoot,
     referencePoolRoot: cfg.poolRoot,
     cellIds: cfg.cellIds,
@@ -294,7 +363,7 @@ function cmdReplay(): never {
   console.log(`\n  recomputed E(t) = ${formatRay(result.recomputed.eRoundRay, 8)}`);
   console.log(`  published  E(t) = ${formatRay(BigInt(record.verdict.eRoundRay), 8)}`);
 
-  if (result.findings.length > 0) {
+  if (!result.ok) {
     console.log(c.red(`\n  ${result.findings.length} quantity/quantities differ:`));
     for (const f of result.findings) {
       console.log(`    ${f.quantity}\n      published  ${f.published}\n      recomputed ${f.recomputed}`);
@@ -373,7 +442,7 @@ function cmdQuote(): never {
   console.log(`  premium               ${(Number(q.premium) / 1e6).toFixed(2)} USDC  (${q.premiumRateBps} bps)\n`);
   console.log(`  P(departure in term)  ${(q.components.pDeparture * 100).toFixed(2)}%`);
   console.log(`  P(detected | dep.)    ${(q.components.pDetectedGivenDeparture * 100).toFixed(2)}%`);
-  console.log(`  P(false alarm)        ${(q.components.pFalseAlarm * 100).toFixed(2)}%   bounded by alpha`);
+  console.log(`  P(false alarm)        ${(q.components.pFalseAlarm * 100).toFixed(2)}%   alpha assumption; requires valid conditional null e-values`);
   console.log(`  expected loss         ${q.components.expectedLossBps.toFixed(1)} bps`);
   console.log(`  capital charge        ${q.components.capitalChargeBps.toFixed(1)} bps`);
   console.log(`  pool margin           ${q.components.poolMarginBps.toFixed(1)} bps\n`);

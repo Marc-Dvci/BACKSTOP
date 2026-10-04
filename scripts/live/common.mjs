@@ -174,11 +174,12 @@ export function buildPool(key, laws, cellIds) {
 /** drand quicknet, the public beacon half of every round seed. */
 export const DRAND_CHAIN = "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971";
 
-export async function drandLatest() {
-  const res = await fetch(`https://api.drand.sh/${DRAND_CHAIN}/public/latest`);
+export async function drandScheduled(round) {
+  if (!Number.isSafeInteger(round) || round <= 0) throw new Error("invalid scheduled quicknet round");
+  const res = await fetch(`https://api.drand.sh/${DRAND_CHAIN}/public/${round}`, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`drand answered ${res.status}`);
   const body = await res.json();
-  return { round: body.round, value: `0x${body.randomness}` };
+  return { round, value: core.verifyQuicknetBeacon(body, round) };
 }
 
 export function fmtMon(wei) {

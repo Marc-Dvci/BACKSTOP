@@ -20,9 +20,6 @@ const RAY = 10n ** 27n;
 const INDEX_ID = "index";
 const POOL_ID = "pool";
 
-/** ln(1/alpha) at RAY scale for alpha = 0.05, the value every demo attestation pins. */
-const DEFAULT_BOUNDARY_RAY = 2995732273553990993080000000n;
-
 const emptyIndex = (timestamp: bigint): ProtocolIndex => ({
   id: INDEX_ID,
   endpointsMeasured: 0,
@@ -74,7 +71,8 @@ async function loadPool(context: any, timestamp: bigint): Promise<Pool> {
 /** Distance to the boundary in basis points, clamped at zero. */
 function distanceBps(logRay: bigint, boundaryRay: bigint): number {
   if (boundaryRay <= 0n || logRay <= 0n) return 0;
-  return Number((logRay * 10000n) / boundaryRay);
+  const distance = (logRay * 10000n) / boundaryRay;
+  return Number(distance > 2147483647n ? 2147483647n : distance);
 }
 
 /**
@@ -89,12 +87,16 @@ function distanceBps(logRay: bigint, boundaryRay: bigint): number {
  */
 const OPEN_ROUND_SELECTOR = "0x1cd8c331";
 
-function scheduledFromCalldata(input: string | undefined): number {
+function scheduledFromCalldata(input: string | undefined, versionId: bigint, round: number): number {
   if (!input) return 0;
   if (input.slice(0, 10).toLowerCase() !== OPEN_ROUND_SELECTOR) return 0;
   const body = input.slice(10);
-  if (body.length < 5 * 64) return 0;
-  return Number(BigInt(`0x${body.slice(4 * 64, 5 * 64)}`));
+  if (body.length !== 5 * 64 || !/^[0-9a-fA-F]+$/.test(body)) return 0;
+  if (BigInt(`0x${body.slice(0, 64)}`) !== versionId || BigInt(`0x${body.slice(64, 128)}`) !== BigInt(round)) return 0;
+  const word = body.slice(4 * 64, 5 * 64);
+  if (!/^[0-9a-fA-F]{64}$/.test(word)) return 0;
+  const count = BigInt(`0x${word}`);
+  return count <= 0xffffffffn ? Number(count) : 0;
 }
 
 /**
@@ -162,7 +164,10 @@ indexer.onEvent(
     issuedAt: BigInt(event.block.timestamp),
     retiredAt: undefined,
     versionLogRay: 0n,
-    distanceBps: 0,
+    distanceBps: undefined,
+    boundaryRay: undefined,
+    scheduledPerRound: undefined,
+    missingScheduledRounds: 0,
     inWarningRegion: false,
     crossed: false,
     crossedAtRound: undefined,
@@ -227,10 +232,22 @@ indexer.onEvent(
 // ---------------------------------------------------------------- rounds
 
 indexer.onEvent(
+  { contract: "AttestationRegistry", event: "VersionConfigured" },
+  async ({ event, context }) => {
+    const endpoint = await context.Endpoint.get(event.params.versionId.toString());
+    if (!endpoint) return;
+    context.Endpoint.set({ ...endpoint, boundaryRay: event.params.boundaryRay,
+      scheduledPerRound: Number(event.params.scheduledPerRound),
+      distanceBps: distanceBps(endpoint.versionLogRay, event.params.boundaryRay) });
+  },
+);
+
+indexer.onEvent(
   { contract: "AuditRegistry", event: "RoundOpened" },
   async ({ event, context }) => {
   const id = `${event.params.versionId}-${event.params.round}`;
-  const scheduled = scheduledFromCalldata(event.transaction.input);
+  const endpoint = await context.Endpoint.get(event.params.versionId.toString());
+  const scheduled = endpoint?.scheduledPerRound ?? scheduledFromCalldata(event.transaction.input, event.params.versionId, Number(event.params.round));
   context.Round.set({
     id,
     endpoint_id: event.params.versionId.toString(),
@@ -243,6 +260,7 @@ indexer.onEvent(
     warning: false,
     versionCrossed: false,
     scheduled,
+    scheduledKnown: scheduled > 0,
     voided: 0,
     openedAt: BigInt(event.block.timestamp),
     sealedAt: undefined,
@@ -257,8 +275,31 @@ indexer.onEvent(
 
   const e = await context.Endpoint.get(event.params.versionId.toString());
   if (e) {
-    context.Endpoint.set({ ...e, scheduledTotal: e.scheduledTotal + scheduled });
+    context.Endpoint.set({ ...e, scheduledTotal: e.scheduledTotal + scheduled,
+      missingScheduledRounds: (e.missingScheduledRounds ?? 0) + Number(scheduled === 0),
+      voidRateBps: scheduled === 0 || e.missingScheduledRounds > 0 ? undefined : e.voidRateBps });
   }
+  const index = await loadIndex(context, BigInt(event.block.timestamp));
+  context.ProtocolIndex.set({ ...index, totalScheduledExecutions: index.totalScheduledExecutions + scheduled, updatedAt: BigInt(event.block.timestamp) });
+  },
+);
+
+// The authoritative event and historical calldata fallback update the same round.
+indexer.onEvent(
+  { contract: "AuditRegistry", event: "RoundScheduled" },
+  async ({ event, context }) => {
+    const id = `${event.params.versionId}-${event.params.round}`;
+    const round = await context.Round.get(id);
+    const endpoint = await context.Endpoint.get(event.params.versionId.toString());
+    if (!round || !endpoint) return;
+    const scheduled = Number(event.params.scheduled), delta = scheduled - round.scheduled;
+    const missing = Math.max(0, (endpoint.missingScheduledRounds ?? 0) - Number(!round.scheduledKnown));
+    context.Round.set({ ...round, scheduled, scheduledKnown: true });
+    const total = endpoint.scheduledTotal + delta;
+    context.Endpoint.set({ ...endpoint, scheduledTotal: total, missingScheduledRounds: missing,
+      voidRateBps: missing || total === 0 ? undefined : Math.floor(endpoint.voidedTotal * 10000 / total) });
+    const index = await loadIndex(context, BigInt(event.block.timestamp));
+    context.ProtocolIndex.set({ ...index, totalScheduledExecutions: index.totalScheduledExecutions + delta });
   },
 );
 
@@ -281,8 +322,10 @@ indexer.onEvent(
   context.Endpoint.set({
     ...e,
     voidedTotal,
-    voidRateBps: e.scheduledTotal === 0 ? 0 : Math.floor((voidedTotal * 10000) / e.scheduledTotal),
+    voidRateBps: e.scheduledTotal === 0 || e.missingScheduledRounds > 0 ? undefined : Math.floor((voidedTotal * 10000) / e.scheduledTotal),
   });
+  const index = await loadIndex(context, BigInt(event.block.timestamp));
+  context.ProtocolIndex.set({ ...index, totalVoidedExecutions: index.totalVoidedExecutions + Number(event.params.voided), updatedAt: BigInt(event.block.timestamp) });
   },
 );
 
@@ -310,7 +353,7 @@ indexer.onEvent(
     context.Endpoint.set({
       ...e,
       versionLogRay: event.params.cumLogRay,
-      distanceBps: distanceBps(event.params.cumLogRay, DEFAULT_BOUNDARY_RAY),
+      distanceBps: e.boundaryRay === undefined ? undefined : distanceBps(event.params.cumLogRay, e.boundaryRay),
       inWarningRegion: event.params.warning,
       crossed: alreadyCrossed || event.params.versionCrossed,
       crossedAtRound: alreadyCrossed
@@ -327,7 +370,7 @@ indexer.onEvent(
       roundsClosed: index.roundsClosed + 1,
       endpointsCrossed:
         index.endpointsCrossed + (!alreadyCrossed && event.params.versionCrossed ? 1 : 0),
-      endpointsInWarning: index.endpointsInWarning + (event.params.warning && !e.inWarningRegion ? 1 : 0),
+      endpointsInWarning: index.endpointsInWarning + Number(event.params.warning) - Number(e.inWarningRegion),
       updatedAt: timestamp,
     });
   }
@@ -740,10 +783,12 @@ indexer.onEvent(
   { contract: "TicketRegistry", event: "TicketReserved" },
   async ({ event, context }) => {
   const id = event.params.producer.toLowerCase();
+  if (await context.ExecutionTicket.get(event.params.ticket)) return;
   const p = await context.Producer.get(id);
   if (p) context.Producer.set({ ...p, ticketsReserved: p.ticketsReserved + 1 });
 
   const roundId = `${event.params.versionId}-${event.params.round}`;
+  context.ExecutionTicket.set({ id: event.params.ticket, producer_id: id, round_id: roundId, status: "reserved" });
   const r = await context.Round.get(roundId);
   if (r) context.Round.set({ ...r, ticketsReserved: r.ticketsReserved + 1 });
   },
@@ -752,21 +797,28 @@ indexer.onEvent(
 indexer.onEvent(
   { contract: "TicketRegistry", event: "TicketPublished" },
   async ({ event, context }) => {
-  // The ticket id carries no version, so the producer row is the aggregate that moves here.
-  const index = await loadIndex(context, BigInt(event.block.timestamp));
-  context.ProtocolIndex.set({
-    ...index,
-    totalScheduledExecutions: index.totalScheduledExecutions + 1,
-    updatedAt: BigInt(event.block.timestamp),
-  });
+  // RoundOpened counts scheduled executions. A publication must not count them again.
+  const ticket = await context.ExecutionTicket.get(event.params.ticket);
+  if (!ticket || ticket.status !== "reserved") return;
+  context.ExecutionTicket.set({ ...ticket, status: "published" });
+  const producer = await context.Producer.get(ticket.producer_id);
+  if (producer) {
+    const published = producer.ticketsPublished + 1;
+    const total = published + producer.ticketsVoided;
+    context.Producer.set({ ...producer, ticketsPublished: published, voidRateBps: Math.floor(producer.ticketsVoided * 10000 / total) });
+  }
+  const round = await context.Round.get(ticket.round_id);
+  if (round) context.Round.set({ ...round, ticketsPublished: round.ticketsPublished + 1 });
   },
 );
 
 indexer.onEvent(
   { contract: "TicketRegistry", event: "TicketVoided" },
   async ({ event, context }) => {
-  const timestamp = BigInt(event.block.timestamp);
   const id = event.params.producer.toLowerCase();
+  const ticket = await context.ExecutionTicket.get(event.params.ticket);
+  if (!ticket || ticket.status !== "reserved" || ticket.producer_id !== id) return;
+  context.ExecutionTicket.set({ ...ticket, status: "void" });
   const p = await context.Producer.get(id);
   if (p) {
     const voided = p.ticketsVoided + 1;
@@ -777,13 +829,9 @@ indexer.onEvent(
       voidRateBps: total === 0 ? 0 : Math.floor((voided * 10000) / total),
     });
   }
-
-  const index = await loadIndex(context, timestamp);
-  context.ProtocolIndex.set({
-    ...index,
-    totalVoidedExecutions: index.totalVoidedExecutions + 1,
-    updatedAt: timestamp,
-  });
+  const round = await context.Round.get(ticket.round_id);
+  if (round) context.Round.set({ ...round, ticketsVoided: round.ticketsVoided + 1 });
+  // RoundSealed records the authoritative aggregate; do not count ticket voids twice.
   },
 );
 

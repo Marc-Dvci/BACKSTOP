@@ -12,7 +12,7 @@ export function toHex(bytes: Uint8Array): Hex {
 
 export function fromHex(hex: string): Uint8Array {
   const h = hex.startsWith("0x") ? hex.slice(2) : hex;
-  if (h.length % 2 !== 0) throw new Error("odd-length hex string");
+  if (h.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(h)) throw new Error("invalid hex encoding");
   const out = new Uint8Array(h.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
   return out;
@@ -35,7 +35,9 @@ export function concatBytes(...parts: Uint8Array[]): Uint8Array {
 
 /** A 32-byte big-endian encoding of an unsigned integer, matching `abi.encode(uint256)`. */
 export function word(value: bigint | number): Uint8Array {
+  if (typeof value === "number" && !Number.isSafeInteger(value)) throw new Error("word requires a safe integer");
   let v = BigInt(value);
+  if (v < -(1n << 255n) || v >= (1n << 256n)) throw new Error("word exceeds its 256-bit encoding");
   if (v < 0n) v = (1n << 256n) + v; // two's complement, matching `abi.encode(int256)`
   const out = new Uint8Array(32);
   for (let i = 31; i >= 0; i--) {
@@ -73,7 +75,7 @@ function canonicalise(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalise);
   if (value && typeof value === "object") {
     const src = value as Record<string, unknown>;
-    const out: Record<string, unknown> = {};
+    const out: Record<string, unknown> = Object.create(null);
     for (const k of Object.keys(src).sort()) {
       if (src[k] === undefined) continue;
       out[k] = canonicalise(src[k]);

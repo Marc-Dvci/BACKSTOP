@@ -67,6 +67,7 @@ contract AuditRegistry {
     mapping(uint256 => uint32) public scheduledTotal;
 
     event RoundOpened(uint256 indexed versionId, uint32 indexed round, bytes32 seed);
+    event RoundScheduled(uint256 indexed versionId, uint32 indexed round, uint32 scheduled);
     event RoundSealed(uint256 indexed versionId, uint32 indexed round, bytes32 transcriptRoot, uint32 voided);
     event RoundClosed(
         uint256 indexed versionId,
@@ -82,6 +83,7 @@ contract AuditRegistry {
     error OutOfOrder();
     error BadSeed();
     error PastRoundCap();
+    error InvalidExecutionCounts();
 
     constructor(AttestationRegistry attestations_) {
         attestations = attestations_;
@@ -111,6 +113,11 @@ contract AuditRegistry {
         bytes32 seed = keccak256(abi.encodePacked(issuerShare, beaconValue));
         Round storage r = _rounds[versionId][round];
         if (r.state != RoundState.None) revert WrongState();
+        if (scheduled != uint256(s.n) * s.cellsPerRound) revert InvalidExecutionCounts();
+        bytes32 expected = round == 0
+            ? attestations.commitments(versionId).seedChainRoot
+            : _rounds[versionId][round - 1].issuerShare;
+        if (keccak256(abi.encodePacked(issuerShare)) != expected) revert BadSeed();
 
         r.state = RoundState.Open;
         r.index = round;
@@ -122,6 +129,7 @@ contract AuditRegistry {
 
         scheduledTotal[versionId] += scheduled;
         emit RoundOpened(versionId, round, seed);
+        emit RoundScheduled(versionId, round, scheduled);
     }
 
     /// @notice Seal the round's transcript commitments. After this the audited responses are fixed.
@@ -131,6 +139,7 @@ contract AuditRegistry {
     {
         Round storage r = _rounds[versionId][round];
         if (r.state != RoundState.Open) revert WrongState();
+        if (voided > r.scheduled) revert InvalidExecutionCounts();
         r.state = RoundState.Sealed;
         r.transcriptRoot = transcriptRoot;
         r.voided = voided;
@@ -204,6 +213,7 @@ contract AuditRegistry {
     /// @notice Whether a policy accumulating from `startRound` has crossed by `upToRound`.
     function hasCrossed(uint256 versionId, uint32 startRound, uint32 upToRound) external view returns (bool) {
         if (_rounds[versionId][upToRound].state != RoundState.Closed) return false;
+        if (upToRound < startRound) return false;
         AttestationRegistry.Statistical memory s = attestations.stats(versionId);
         int256 boundary = BSA1.ln(BSA1.div(BSA1.RAY, s.alphaRay));
         return policyLog(versionId, startRound, upToRound) >= boundary;

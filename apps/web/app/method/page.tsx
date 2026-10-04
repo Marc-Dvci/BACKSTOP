@@ -17,6 +17,12 @@ export default function MethodPage() {
         onchain adjudicator uses. Each section names the script that regenerates it.
       </p>
 
+      <p className="data-notice" style={{ marginBottom: 24 }}>
+        The method gives a lifetime bound under valid conditional e-values for the declared null.
+        Gate zero measures crossings under known simulated laws. The actual Qwen campaign uses
+        finite measured reference histograms and compares a Q8_0 control with a Q4_K_M substitution.
+        Each CLI campaign fixes its own lifetime and reference commitment.
+      </p>
       {/* -------------------------------------------------- the null */}
       <div className="panel" style={{ marginBottom: 20 }}>
         <div className="panel-head">
@@ -76,9 +82,9 @@ export default function MethodPage() {
                     <code>p = (1 + #&#123;i : S0_i ≥ S&#125;) / (m + 1)</code>
                   </td>
                   <td>
-                    R(c,j) comes from a disjoint partition, so the m + 1 statistics are i.i.d. and the
-                    rank is exactly super-uniform. The slice is unrevealed until the round seals, so
-                    this holds conditional on the filtration rather than only marginally.
+                    Under conditional exchangeability, the m + 1 statistics give a super-uniform rank.
+                    R(c,j) uses a disjoint fingerprint partition; each calibration slice is revealed
+                    after the audited transcript seal.
                   </td>
                 </tr>
                 <tr>
@@ -95,7 +101,7 @@ export default function MethodPage() {
                   <td>
                     <code>e(t,j) = min over c in M</code>
                   </td>
-                  <td>Bounded above by the e-value of the true element, so validity is uniform over the composite null.</td>
+                  <td>For an attested true element with a valid conditional e-value, the minimum is bounded above by that element’s e-value.</td>
                 </tr>
                 <tr>
                   <td className="tnum">4</td>
@@ -112,7 +118,7 @@ export default function MethodPage() {
                     <code>M(T) = Π E(t)</code>
                   </td>
                   <td>
-                    A nonnegative test supermartingale. Ville gives P(∃T ≤ T_max : M(T) ≥ 1/α) ≤ α, so
+                    With valid conditional round e-values, a nonnegative test supermartingale. Ville gives P(∃T ≤ T_max : M(T) ≥ 1/α) ≤ α, so
                     the error budget covers the whole lifetime rather than one look.
                   </td>
                 </tr>
@@ -261,7 +267,7 @@ export default function MethodPage() {
         <div className="panel-body">
           <p className="prose" style={{ fontSize: 13.5, marginBottom: 16 }}>
             A probe costs one output token, so draws per cell are the cheapest lever the protocol has.
-            The floor moves with it, and the false-alarm control holds at every sample size. An
+            The measured detection floor and benign crossing rate are reported at each sample size. An
             attestation is sized against the dilution its buyer wants covered before coverage is
             written.
           </p>

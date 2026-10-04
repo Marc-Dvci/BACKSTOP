@@ -12,6 +12,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   RAY,
   ln,
@@ -152,10 +153,10 @@ const out = {
   ville: { alpha: alphas.map(s), out: boundaries.map(s) },
 };
 
-const path = new URL("../../../contracts/vectors/bsa1-vectors.json", import.meta.url);
-mkdirSync(dirname(path.pathname.slice(1)), { recursive: true });
+const path = fileURLToPath(new URL("../../../contracts/vectors/bsa1-vectors.json", import.meta.url));
+mkdirSync(dirname(path), { recursive: true });
 writeFileSync(path, JSON.stringify(out, null, 1));
-console.log(`wrote ${path.pathname.slice(1)}`);
+console.log(`wrote ${path}`);
 console.log(
   `ln ${lnX.length}  exp ${expX.length}  pow ${powBase.length}  ` +
     `empirical ${CASES}  jsd ${CASES}  conformal ${CASES}  calibrate ${CASES}`,

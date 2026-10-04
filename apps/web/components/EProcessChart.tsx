@@ -5,6 +5,8 @@ export interface Trace {
   color: string;
   /** Cumulative log at each round, RAY scale. */
   points: bigint[];
+  /** Number of completed rounds before the trace's initial zero baseline. */
+  startRound?: number;
   dashed?: boolean;
 }
 
@@ -64,8 +66,8 @@ export function EProcessChart({
         width="100%"
         height={H}
         role="img"
-        aria-label="Running product of e-values against the precommitted boundary"
-        style={{ display: "block" }}
+        aria-label={`Cumulative log evidence, boundary ${formatRay(boundaryRay, 3)}. ${traces.map((t) => `${t.label}: ${formatRay(t.points.at(-1) ?? 0n, 3)}`).join(". ")}`}
+        style={{ display: "block", minWidth: 640 }}
       >
         <defs>
           <linearGradient id="crossZone" x1="0" y1="0" x2="0" y2="1">
@@ -80,7 +82,7 @@ export function EProcessChart({
         {gridValues.map((v) => (
           <g key={v}>
             <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke="#1c2531" strokeWidth={1} />
-            <text x={padL - 10} y={y(v) + 4} textAnchor="end" fill="#5b6675" fontSize={10.5} fontFamily="var(--mono)">
+            <text x={padL - 10} y={y(v) + 4} textAnchor="end" fill="#8b98a9" fontSize={10.5} fontFamily="var(--mono)">
               {v.toFixed(0)}
             </text>
           </g>
@@ -132,7 +134,7 @@ export function EProcessChart({
         {traces.map((t) => {
           if (t.points.length === 0) return null;
           const d = t.points
-            .map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(2)} ${y(Number(p) / 1e27).toFixed(2)}`)
+            .map((p, i) => `${i === 0 ? "M" : "L"} ${x(i + (t.startRound ?? 0)).toFixed(2)} ${y(Number(p) / 1e27).toFixed(2)}`)
             .join(" ");
           return (
             <g key={t.label}>
@@ -145,7 +147,7 @@ export function EProcessChart({
                 strokeLinejoin="round"
               />
               {t.points.map((p, i) => (
-                <circle key={i} cx={x(i)} cy={y(Number(p) / 1e27)} r={2.2} fill={t.color} />
+                <circle key={i} cx={x(i + (t.startRound ?? 0))} cy={y(Number(p) / 1e27)} r={2.2} fill={t.color} />
               ))}
             </g>
           );
@@ -160,7 +162,7 @@ export function EProcessChart({
               x={x(r)}
               y={H - padB + 16}
               textAnchor="middle"
-              fill="#5b6675"
+              fill="#8b98a9"
               fontSize={10.5}
               fontFamily="var(--mono)"
             >
@@ -168,8 +170,8 @@ export function EProcessChart({
             </text>
           ),
         )}
-        <text x={(W + padL) / 2} y={H - 3} textAnchor="middle" fill="#5b6675" fontSize={10.5} fontFamily="var(--mono)">
-          audit round
+        <text x={(W + padL) / 2} y={H - 3} textAnchor="middle" fill="#8b98a9" fontSize={10.5} fontFamily="var(--mono)">
+          completed audit rounds
         </text>
       </svg>
 

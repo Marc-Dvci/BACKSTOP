@@ -4,6 +4,8 @@ pragma solidity ^0.8.28;
 import {Base} from "./Base.t.sol";
 import {AuditRegistry} from "../src/AuditRegistry.sol";
 import {Settlement} from "../src/Settlement.sol";
+import {PolicyRegistry} from "../src/PolicyRegistry.sol";
+import {WebAuthnP256} from "../src/lib/WebAuthnP256.sol";
 import {TicketRegistry} from "../src/TicketRegistry.sol";
 import {Verdict} from "../src/lib/Verdict.sol";
 import {BSA1} from "../src/lib/BSA1.sol";
@@ -31,7 +33,7 @@ contract EvidenceTest is Base {
     function _openRound(uint32 round) internal returns (bytes32 seed) {
         vm.prank(issuer);
         audits.openRound(
-            versionId, round, keccak256(abi.encode("share", round)), keccak256(abi.encode("beacon", round)), 24
+            versionId, round, seedShare(round), keccak256(abi.encode("beacon", round)), N_DRAWS * CELLS_PER_ROUND
         );
         seed = audits.getRound(versionId, round).seed;
     }
@@ -48,6 +50,30 @@ contract EvidenceTest is Base {
         vm.prank(producer);
         vm.expectRevert(TicketRegistry.WrongState.selector);
         tickets.reserve(versionId, contributor, 0, PROBE);
+    }
+
+    function test_ChangingContributorCannotRetryAPublishedProbe() public {
+        _openRound(0);
+        vm.startPrank(producer);
+        tickets.reserve(versionId, contributor, 0, PROBE);
+        bytes32 id = tickets.ticketId(versionId, contributor, 0, PROBE);
+        tickets.publish(id, keccak256("recorded response"));
+        assertEq(id, tickets.ticketId(versionId, address(0xBEEF), 0, PROBE));
+        vm.expectRevert(TicketRegistry.WrongState.selector);
+        tickets.reserve(versionId, address(0xBEEF), 0, PROBE);
+        vm.stopPrank();
+    }
+
+    function test_ChangingContributorCannotRetryAVoidedProbe() public {
+        _openRound(0);
+        vm.prank(producer);
+        tickets.reserve(versionId, contributor, 0, PROBE);
+        bytes32 id = tickets.ticketId(versionId, contributor, 0, PROBE);
+        skip(20 minutes);
+        tickets.voidExpired(id);
+        vm.prank(producer);
+        vm.expectRevert(TicketRegistry.WrongState.selector);
+        tickets.reserve(versionId, address(0xBEEF), 0, PROBE);
     }
 
     function test_OnlyTheAssignedProducerMayReserve() public {
@@ -125,12 +151,12 @@ contract EvidenceTest is Base {
 
     function test_VoidRateFeedsTheCircuitBreaker() public {
         vm.startPrank(issuer);
-        audits.openRound(versionId, 0, keccak256("s0"), keccak256("b0"), 100);
-        audits.sealRound(versionId, 0, keccak256("t0"), 20);
+        audits.openRound(versionId, 0, seedShare(0), keccak256("b0"), N_DRAWS * CELLS_PER_ROUND);
+        audits.sealRound(versionId, 0, keccak256("t0"), (N_DRAWS * CELLS_PER_ROUND) / 4);
         audits.closeRound(versionId, 0, keccak256("r0"), BSA1.RAY / 2);
         vm.stopPrank();
 
-        assertEq(audits.voidRateBps(versionId), 2000, "20 of 100 scheduled executions voided");
+        assertEq(audits.voidRateBps(versionId), 2500, "one quarter of scheduled executions voided");
 
         // Above the declared breaker, the issuer suspends the version and coverage stops.
         vm.prank(issuer);
@@ -186,7 +212,7 @@ contract EvidenceTest is Base {
         f.root = MerkleLib.hashPair(leaf, sibling);
 
         vm.startPrank(issuer);
-        audits.openRound(versionId, round, keccak256("share"), keccak256("beacon"), 24);
+        audits.openRound(versionId, round, seedShare(round), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND);
         audits.sealRound(versionId, round, keccak256("transcripts"), 0);
         audits.closeRound(versionId, round, f.root, BSA1.RAY / 2);
         vm.stopPrank();
@@ -194,9 +220,14 @@ contract EvidenceTest is Base {
 
     function test_ATruthfulVerdictSurvivesChallenge() public {
         RevealFixture memory f = _publishRound(0, false);
+        vm.prank(governance);
+        settlement.setChallengerBond(100e6);
+        vm.prank(challenger);
+        usdc.approve(address(settlement), 100e6);
 
         vm.prank(challenger);
         settlement.challengeCell(versionId, f.claim, f.proof, f.audited, f.refCounts, f.calibration);
+        assertEq(settlement.issuerBond(versionId), 100e6, "rejected stake remains accounted for in issuer collateral");
 
         assertEq(
             uint8(settlement.verdictState(versionId, 0)),
@@ -251,6 +282,41 @@ contract EvidenceTest is Base {
         vm.prank(challenger);
         vm.expectRevert(Settlement.ChallengeWindowClosed.selector);
         settlement.challengeCell(versionId, f.claim, f.proof, f.audited, f.refCounts, f.calibration);
+    }
+
+    function test_LaterRoundCannotLaunderADisputedCumulativeLog() public {
+        RevealFixture memory f = _publishRound(0, true);
+        vm.prank(challenger);
+        settlement.challengeCell(versionId, f.claim, f.proof, f.audited, f.refCounts, f.calibration);
+        runHotRound(versionId, 1);
+        skip(2 hours);
+        assertFalse(settlement.isFinal(versionId, 1), "disputed history contaminates later cumulative logs");
+    }
+
+    function test_DisputedVersionCannotCollectANewPolicyPremium() public {
+        RevealFixture memory f = _publishRound(0, true);
+        vm.prank(challenger);
+        settlement.challengeCell(versionId, f.claim, f.proof, f.audited, f.refCounts, f.calibration);
+        PolicyRegistry.Terms memory t;
+        t.chainId = block.chainid;
+        t.verifyingContract = address(policies);
+        t.policyVersion = policies.POLICY_VERSION();
+        t.attestationVersion = versionId;
+        t.endpointId = ENDPOINT;
+        t.buyer = buyer;
+        t.notional = 1_000e6;
+        t.term = 1 days;
+        t.premiumRateBps = 180;
+        t.seasoningRounds = SEASONING;
+        t.expiry = block.timestamp + 1 days;
+        WebAuthnP256.Assertion memory assertion;
+        PolicyRegistry.QuoteComponents memory quote;
+        uint256 before = usdc.balanceOf(buyer);
+        vm.prank(buyer);
+        vm.expectRevert(PolicyRegistry.NotWritable.selector);
+        policies.purchase(t, assertion, keccak256("credential"), quote);
+        assertEq(usdc.balanceOf(buyer), before, "disputed coverage takes no premium");
+        assertEq(pool.reservedCapital(), 0, "disputed coverage reserves no capital");
     }
 
     function test_AdjudicationGasFitsInsideAMonadTransaction() public {

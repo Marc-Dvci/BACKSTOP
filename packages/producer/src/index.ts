@@ -1,10 +1,9 @@
 /**
  * The evidence producer.
  *
- * Evidence that can trigger a payout carries a transcript attestation binding the server
- * identity for the endpoint host, the request bytes and the response bytes. This service is
- * that producer: it terminates the session, signs with an attested key, and publishes the
- * commitment directly to chain before the contributor can act on the content.
+ * Records the exact request and raw response under a producer-controlled identity, then
+ * publishes their commitment to chain. A durable checkpoint lets a restarted producer
+ * publish the same response without querying the endpoint again.
  *
  * Three biases are closed by the ordering rather than by asking anyone to behave:
  *
@@ -25,13 +24,23 @@
 
 import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   keccakString,
   keccak,
   concatBytes,
   utf8,
   fromHex,
+  roundProbes,
+  buildChatRequest,
+  samplingContractHash,
+  digest,
   generateProbes,
+  probeLeafData,
+  MerkleTree,
+  hashLeaf,
+  type WireSamplingContract,
   countResponses,
   assignedProducer,
   CELLS,
@@ -40,6 +49,8 @@ import {
 import {
   auditRegistryAbi,
   ticketRegistryAbi,
+  attestationRegistryAbi,
+  erc20Abi,
   monadTestnet,
   deploymentFor,
   type Deployment,
@@ -55,6 +66,14 @@ export interface ProducerConfig {
   cellsPerRound: number;
   drawsPerCell: number;
   probeSeed: Hex;
+  poolRoot: Hex;
+  tMax: number;
+  cellIds: string[];
+  sampling: WireSamplingContract;
+  samplingHash: Hex;
+  attestationDigest: Hex;
+  attestationManifest: Record<string, unknown>;
+  evidenceDir: string;
   /** Poll interval while waiting for the next round to open. */
   pollMs: number;
 }
@@ -68,10 +87,20 @@ export interface ExecutionResult {
   answerIndex: number | null;
 }
 
+export function producerProbes(cfg: ProducerConfig, seed: Hex, round: number) {
+  if (!Number.isSafeInteger(round) || round < 0 || round >= cfg.tMax) throw new Error("producer round is outside the committed lifetime");
+  return selectCells(seed, cfg.cellIds.length, cfg.cellsPerRound).flatMap((index) =>
+    roundProbes(cfg.probeSeed, cfg.poolRoot, cfg.cellIds[index]!, round, cfg.drawsPerCell, cfg.tMax));
+}
+
+export function producerRequest(cfg: ProducerConfig, probe: ReturnType<typeof producerProbes>[number]): string {
+  return JSON.stringify(buildChatRequest(cfg.endpoint.model, probe, cfg.sampling));
+}
+
 /**
  * The transcript commitment.
  *
- * Binds the producer's attested key, the request bytes and the response bytes. A probe costs
+ * Binds the producer's address, declared endpoint host, request bytes and response bytes. A probe costs
  * one output token, so a transcript is a few hundred bytes and the commitment is one hash.
  */
 export function transcriptCommitment(args: {
@@ -99,6 +128,22 @@ export class Producer {
   private readonly walletClient;
 
   constructor(private readonly cfg: ProducerConfig) {
+    if (!cfg.evidenceDir || !/^0x[0-9a-fA-F]{64}$/.test(cfg.probeSeed) || !/^0x[0-9a-fA-F]{64}$/.test(cfg.poolRoot) ||
+      !/^0x[0-9a-fA-F]{64}$/.test(cfg.attestationDigest) || !cfg.cellIds?.length || new Set(cfg.cellIds).size !== cfg.cellIds.length ||
+      cfg.cellIds.some((id) => !CELLS.some((cell) => cell.id === id)) ||
+      [cfg.cellsPerRound, cfg.drawsPerCell, cfg.tMax, cfg.pollMs].some((n) => !Number.isSafeInteger(n) || n <= 0) ||
+      cfg.cellsPerRound > cfg.cellIds.length || samplingContractHash(cfg.sampling) !== cfg.samplingHash) {
+      throw new Error("invalid producer configuration or sampling commitment");
+    }
+    const manifest = cfg.attestationManifest;
+    if (digest(manifest) !== cfg.attestationDigest || manifest.poolRoot !== cfg.poolRoot ||
+      manifest.n !== cfg.drawsPerCell || manifest.tMax !== cfg.tMax || manifest.cellsPerRound !== cfg.cellsPerRound ||
+      digest(manifest.cellIds) !== digest(cfg.cellIds) || manifest.samplingContractHash !== cfg.samplingHash) {
+      throw new Error("producer configuration differs from its issuance manifest");
+    }
+    const leaves = cfg.cellIds.flatMap((id) => generateProbes(cfg.probeSeed, id, cfg.drawsPerCell * cfg.tMax)
+      .map((probe) => hashLeaf(utf8(probeLeafData(probe)))));
+    if (new MerkleTree(leaves).root !== manifest.probePoolRoot) throw new Error("producer probe seed differs from the committed corpus");
     this.account = privateKeyToAccount(cfg.privateKey);
     const transport = http(cfg.rpcUrl ?? monadTestnet.rpcUrls.default.http[0]);
     this.publicClient = createPublicClient({ chain: monadTestnet, transport });
@@ -111,6 +156,10 @@ export class Producer {
 
   /** Register and post the bond the attestation requires. */
   async register(bond: bigint) {
+    if (bond <= 0n) throw new Error("producer bond must be positive");
+    const approve = await this.walletClient.writeContract({ address: this.cfg.deployment.asset as Address, abi: erc20Abi,
+      functionName: "approve", args: [this.cfg.deployment.ticketRegistry as Address, bond], chain: monadTestnet, account: this.account });
+    if ((await this.publicClient.waitForTransactionReceipt({ hash: approve })).status !== "success") throw new Error("producer bond approval reverted");
     const hash = await this.walletClient.writeContract({
       address: this.cfg.deployment.ticketRegistry as Address,
       abi: ticketRegistryAbi,
@@ -119,7 +168,9 @@ export class Producer {
       chain: monadTestnet,
       account: this.account,
     });
-    return this.publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error("producer registration reverted");
+    return receipt;
   }
 
   /** The producers registered for assignment, in the order the contract holds them. */
@@ -151,6 +202,13 @@ export class Producer {
    * exactly the probes it was given and no others. A censor cannot choose its targets.
    */
   async serveRound(round: number): Promise<ExecutionResult[]> {
+    const version = await this.publicClient.readContract({ address: this.cfg.deployment.attestationRegistry as Address,
+      abi: attestationRegistryAbi, functionName: "getVersion", args: [this.cfg.versionId] });
+    if (version.commitments.attestationDigest !== this.cfg.attestationDigest || version.commitments.referencePoolRoot !== this.cfg.poolRoot ||
+      Number(version.stats.n) !== this.cfg.drawsPerCell || Number(version.stats.tMax) !== this.cfg.tMax ||
+      Number(version.stats.cellsPerRound) !== this.cfg.cellsPerRound || Number(version.stats.cellCount) !== this.cfg.cellIds.length) {
+      throw new Error("producer configuration differs from the chain issuance");
+    }
     const r = (await this.publicClient.readContract({
       address: this.cfg.deployment.auditRegistry as Address,
       abi: auditRegistryAbi,
@@ -160,9 +218,8 @@ export class Producer {
 
     if (r.state !== 1) throw new Error(`round ${round} is not open`);
 
-    const cellIds = CELLS.map((c) => c.id);
-    const selected = selectCells(r.seed, cellIds.length, this.cfg.cellsPerRound).map(
-      (i) => cellIds[i] as string,
+    const selected = selectCells(r.seed, this.cfg.cellIds.length, this.cfg.cellsPerRound).map(
+      (i) => this.cfg.cellIds[i] as string,
     );
     const producers = await this.producerList();
     const results: ExecutionResult[] = [];
@@ -171,14 +228,17 @@ export class Producer {
       const cell = CELLS.find((c) => c.id === cellId);
       if (!cell) continue;
 
-      const probes = generateProbes(
+      const probes = roundProbes(
         this.cfg.probeSeed,
+        this.cfg.poolRoot,
         cellId,
-        this.cfg.drawsPerCell * (round + 1),
-      ).slice(this.cfg.drawsPerCell * round);
+        round,
+        this.cfg.drawsPerCell,
+        this.cfg.tMax,
+      );
 
       for (const probe of probes) {
-        if (assignedProducer(r.seed, probe.probeId, producers) !== this.address) continue;
+        if (assignedProducer(r.seed, probe.probeId, producers).toLowerCase() !== this.address.toLowerCase()) continue;
 
         // Reservation is onchain and precedes the upstream request, so two producers cannot race
         // and a retry cannot be laundered into a fresh execution.
@@ -189,7 +249,21 @@ export class Producer {
           args: [this.cfg.versionId, this.cfg.contributor, round, probe.probeId],
         })) as Hex;
 
+        const evidencePath = join(this.cfg.evidenceDir, `${ticketId}.json`);
+        const existing = await this.publicClient.readContract({ address: this.cfg.deployment.ticketRegistry as Address,
+          abi: ticketRegistryAbi, functionName: "ticket", args: [ticketId] });
+        if (existing.state === 0 && existsSync(evidencePath)) throw new Error("durable transcript has no corresponding chain reservation");
+        if (existing.state !== 0 && (!existsSync(evidencePath) || existing.producer.toLowerCase() !== this.address.toLowerCase())) {
+          // A reservation with no durable response is never repeated upstream.
+          results.push({ probeId: probe.probeId, ticketId, state: "VOID", cellId, answerIndex: null });
+          continue;
+        }
+        if (existing.state === 4) {
+          results.push({ probeId: probe.probeId, ticketId, state: "VOID", cellId, answerIndex: null });
+          continue;
+        }
         try {
+          if (existing.state === 0) {
           const reserve = await this.walletClient.writeContract({
             address: this.cfg.deployment.ticketRegistry as Address,
             abi: ticketRegistryAbi,
@@ -198,37 +272,46 @@ export class Producer {
             chain: monadTestnet,
             account: this.account,
           });
-          await this.publicClient.waitForTransactionReceipt({ hash: reserve });
+          if ((await this.publicClient.waitForTransactionReceipt({ hash: reserve })).status !== "success") throw new Error("reservation reverted");
+          }
         } catch {
           results.push({ probeId: probe.probeId, ticketId, state: "VOID", cellId, answerIndex: null });
           continue;
         }
 
-        const request = JSON.stringify({
-          model: this.cfg.endpoint.model,
-          messages: [
-            { role: "system", content: probe.system },
-            { role: "user", content: probe.user },
-          ],
-        });
+        const request = producerRequest(this.cfg, probe);
 
         let response: string | null = null;
+        let content: string | null = null;
+        let status = 0;
         try {
+          if (existsSync(evidencePath)) {
+            const saved = JSON.parse(readFileSync(evidencePath, "utf8"));
+            const { checksum, ...payload } = saved;
+            if (digest(payload) !== checksum || saved.request !== request || saved.probeId !== probe.probeId || saved.ticketId !== ticketId) {
+              throw new Error("producer checkpoint does not match this execution");
+            }
+            response = saved.response; status = saved.status;
+          } else {
           const res = await fetch(`${this.cfg.endpoint.baseUrl.replace(/\/$/, "")}/chat/completions`, {
             method: "POST",
             headers: {
               "content-type": "application/json",
               ...(this.cfg.endpoint.apiKey ? { authorization: `Bearer ${this.cfg.endpoint.apiKey}` } : {}),
             },
-            body: JSON.stringify({
-              ...JSON.parse(request),
-              temperature: 1,
-              top_p: 1,
-              max_tokens: 24,
-            }),
+            body: request,
+            signal: AbortSignal.timeout(30000),
           });
-          const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-          response = body.choices?.[0]?.message?.content ?? null;
+          status = res.status;
+          response = await res.text();
+          mkdirSync(this.cfg.evidenceDir, { recursive: true });
+          const payload = { ticketId, probeId: probe.probeId, cellId, request, response, status };
+          writeFileSync(evidencePath, JSON.stringify({ ...payload, checksum: digest(payload) }), { flag: "wx", mode: 0o600, flush: true });
+          }
+          if (status === 200) {
+            try { const value = JSON.parse(response!).choices?.[0]?.message?.content;
+              content = typeof value === "string" ? value : null; } catch { /* preserve malformed raw response */ }
+          }
         } catch {
           response = null;
         }
@@ -247,6 +330,8 @@ export class Producer {
           serverIdentity: new URL(this.cfg.endpoint.baseUrl).host,
         });
 
+        if (existing.state === 3 && existing.commitment !== commitment) throw new Error("published ticket differs from its durable transcript");
+        if (existing.state !== 3) {
         const publish = await this.walletClient.writeContract({
           address: this.cfg.deployment.ticketRegistry as Address,
           abi: ticketRegistryAbi,
@@ -255,9 +340,10 @@ export class Producer {
           chain: monadTestnet,
           account: this.account,
         });
-        await this.publicClient.waitForTransactionReceipt({ hash: publish });
+        if ((await this.publicClient.waitForTransactionReceipt({ hash: publish })).status !== "success") throw new Error("publication reverted");
+        }
 
-        const { counts } = countResponses([response], cell.alphabet);
+        const { counts } = countResponses(content === null ? [] : [content], cell.alphabet);
         const answerIndex = counts.findIndex((c) => c > 0);
         results.push({
           probeId: probe.probeId,
@@ -294,8 +380,9 @@ export class Producer {
           const voided = results.length - published;
           console.log(`round ${open}: ${published} published, ${voided} voided`);
           served = open;
-        } catch {
-          // the round is not open yet
+        } catch (error) {
+          // Pending rounds are expected; operational errors must remain visible.
+          if (!(error instanceof Error && /not open/.test(error.message))) console.error(error instanceof Error ? error.message : "producer round failed");
         }
       }
       await new Promise((r) => setTimeout(r, this.cfg.pollMs));

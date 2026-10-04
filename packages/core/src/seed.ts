@@ -13,7 +13,7 @@
  * of the assignment path. Neither party can steer the result alone.
  */
 
-import { keccak, concatBytes, fromHex, keccakString, utf8, type Hex } from "./hash.js";
+import { keccak, concatBytes, fromHex, keccakString, utf8, word32, type Hex } from "./hash.js";
 import { Prng } from "./prng.js";
 
 /**
@@ -35,13 +35,15 @@ export function buildSeedChain(secret: Hex, tMax: number): { root: Hex; shares: 
 
 /** A revealed share is valid when hashing it forward `t + 1` times reaches the root. */
 export function verifySeedShare(root: Hex, share: Hex, round: number): boolean {
+  word32(root); word32(share);
+  if (!Number.isSafeInteger(round) || round < 0) throw new Error("invalid seed-chain round");
   let v = share;
   for (let i = 0; i <= round; i++) v = keccak(fromHex(v));
   return v.toLowerCase() === root.toLowerCase();
 }
 
 export function roundSeed(issuerShare: Hex, beaconValue: Hex): Hex {
-  return keccak(concatBytes(fromHex(issuerShare), fromHex(beaconValue)));
+  return keccak(concatBytes(word32(issuerShare), word32(beaconValue)));
 }
 
 /** The cells this round audits, drawn from the attestation's committed cell list. */

@@ -10,10 +10,8 @@ type State = { status: "loading" } | { status: "down" } | { status: "up"; view: 
 /**
  * The index, read from the browser.
  *
- * The endpoint defaults to the reader's own machine, so this cannot be a server render: a
- * page served from a hosting provider would be asking that provider for a localhost that is
- * not theirs. Fetching here means whoever brings the indexer up sees their own data on
- * whichever copy of the app they happen to be looking at.
+ * An explicitly configured GraphQL endpoint is tried first, then the published snapshot.
+ * Hosted pages never probe a reader's localhost unless they configured that endpoint.
  */
 export function IndexPanel() {
   const [state, setState] = useState<State>({ status: "loading" });
@@ -32,7 +30,7 @@ export function IndexPanel() {
   if (state.status === "loading") {
     return (
       <div className="panel">
-        <div className="panel-body hint">Reading {INDEXER_URL}…</div>
+        <div className="panel-body hint">Reading {INDEXER_URL || "the published Envio snapshot"}…</div>
       </div>
     );
   }
@@ -49,13 +47,13 @@ function NotReachable() {
       </div>
       <div className="panel-body">
         <p className="prose" style={{ fontSize: 13 }}>
-          Nothing answered at <code>{INDEXER_URL}</code>. The indexer is self-hosted and runs
+          The published snapshot and configured GraphQL endpoint could not be read. The indexer is self-hosted and runs
           beside the app rather than inside it, so there is nothing to reach until it is up:
         </p>
         <pre style={{ fontSize: 12 }}>
           <code>{`git clone https://github.com/Marc-Dvci/BACKSTOP && cd BACKSTOP
 make indexer     # Postgres, Hasura and the indexer; GraphQL on :8080
-make web         # the app at localhost:3000, reading it`}</code>
+NEXT_PUBLIC_INDEXER_URL=http://localhost:8080/v1/graphql make web`}</code>
         </pre>
         <p className="prose" style={{ fontSize: 13 }}>
           It backfills from the deployment block on Monad testnet and then follows the head. This
@@ -83,15 +81,15 @@ function SourceLine({ source }: { source: IndexedView["source"] }) {
   const when = new Date(source.takenAt * 1000).toISOString().replace("T", " ").slice(0, 16);
   return (
     <p className="hint" style={{ fontSize: 12, marginBottom: 12 }}>
-      Snapshot of the self-hosted indexer at block {source.block.toLocaleString()}, {when} UTC,
-      taken by the scheduled index job
+      Historical index through block {source.block.toLocaleString()}. Snapshot captured {when} UTC
       {source.run ? (
         <>
           {" "}
           (<a href={source.run}>run</a>)
         </>
       ) : null}
-      . <a href={source.url}>Raw JSON</a>. Run <code>make indexer</code> to query it live.
+      . <a href={source.url}>Raw JSON</a>. This is the recorded campaign, not the current chain head.
+      {" "}Run <code>make indexer</code> and configure its URL to query it live.
     </p>
   );
 }
@@ -107,7 +105,8 @@ function Index({ view }: { view: IndexedView }) {
   // committed to against executions that came back unusable.
   const scheduled = view.endpoints.reduce((a, e) => a + e.scheduledTotal, 0);
   const voided = view.endpoints.reduce((a, e) => a + e.voidedTotal, 0);
-  const voidRate = scheduled > 0 ? voided / scheduled : null;
+  const completeSchedule = view.endpoints.every((e) => (e.missingScheduledRounds ?? 0) === 0);
+  const voidRate = scheduled > 0 && completeSchedule ? voided / scheduled : null;
 
   return (
     <>
@@ -192,8 +191,8 @@ function Index({ view }: { view: IndexedView }) {
                       </span>
                     </td>
                     <td className="tnum">{e.roundsClosed}</td>
-                    <td className="tnum">{(e.distanceBps / 100).toFixed(1)}%</td>
-                    <td className="tnum">{(e.voidRateBps / 100).toFixed(2)}%</td>
+                    <td className="tnum">{e.distanceBps == null ? "—" : `${(e.distanceBps / 100).toFixed(1)}%`}</td>
+                    <td className="tnum">{e.voidRateBps == null ? "—" : `${(e.voidRateBps / 100).toFixed(2)}%`}</td>
                     <td className="tnum">{usdc(BigInt(e.outstandingNotional))}</td>
                     <td className="tnum">
                       {e.policiesWritten} / {e.policiesSettled}

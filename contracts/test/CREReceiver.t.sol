@@ -71,7 +71,7 @@ contract CREReceiverTest is Base {
 
     /// @dev One whole round, delivered the way the workflow emits it.
     function deliverRound(uint32 round, int256 eRoundRay) internal {
-        deliver(transition(OPEN, round, keccak256(abi.encode("share", round)), keccak256(abi.encode("beacon", round)), 792, 0));
+        deliver(transition(OPEN, round, seedShare(round), keccak256(abi.encode("beacon", round)), N_DRAWS * CELLS_PER_ROUND, 0));
         deliver(transition(SEAL, round, keccak256(abi.encode("transcripts", round)), bytes32(0), 0, 0));
         deliver(transition(CLOSE, round, keccak256(abi.encode("reveal", round)), bytes32(0), 0, eRoundRay));
     }
@@ -83,7 +83,7 @@ contract CREReceiverTest is Base {
 
         AuditRegistry.Round memory r = audits.getRound(versionId, 0);
         assertEq(uint8(r.state), uint8(AuditRegistry.RoundState.Closed), "the round closed");
-        assertEq(r.scheduled, 792, "the scheduled count came from the report");
+        assertEq(r.scheduled, N_DRAWS * CELLS_PER_ROUND, "the committed draw count came from the report");
         assertEq(r.eRoundRay, (BSA1.RAY * 7) / 10, "E(t) came from the report");
         assertEq(audits.nextRound(versionId), 1, "the cadence advanced");
     }
@@ -148,19 +148,19 @@ contract CREReceiverTest is Base {
      *      error, not with one of the receiver's.
      */
     function test_orderingIsLeftToTheRegistry() public {
-        deliver(transition(OPEN, 0, keccak256("share"), keccak256("beacon"), 792, 0));
+        deliver(transition(OPEN, 0, seedShare(0), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND, 0));
 
         vm.prank(forwarder);
         vm.expectRevert(AuditRegistry.WrongState.selector);
         receiver.onReport(
             metadata(WF_ID, wfOwner),
-            transition(OPEN, 0, keccak256("share"), keccak256("beacon"), 792, 0)
+            transition(OPEN, 0, seedShare(0), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND, 0)
         );
     }
 
     /// @dev A close that arrives before its seal is refused by the registry's state machine.
     function test_closeBeforeSealIsRefused() public {
-        deliver(transition(OPEN, 0, keccak256("share"), keccak256("beacon"), 792, 0));
+        deliver(transition(OPEN, 0, seedShare(0), keccak256("beacon"), N_DRAWS * CELLS_PER_ROUND, 0));
 
         vm.prank(forwarder);
         vm.expectRevert(AuditRegistry.WrongState.selector);

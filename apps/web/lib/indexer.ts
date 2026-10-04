@@ -9,25 +9,26 @@
  *
  * The read happens in the browser, not on the server. The indexer is self-hosted and runs
  * beside whoever is looking at the page, so a server render on a hosting provider could never
- * reach it: the default endpoint is on the reader's own machine. Fetching client-side means a
- * judge who brings the indexer up locally sees their own index on the deployed site.
+ * reach a reader's local service. An explicit NEXT_PUBLIC_INDEXER_URL selects a GraphQL
+ * endpoint. When unset, no localhost request is made and the dated snapshot is used.
  *
- * When no indexer answers there, the page reads the snapshot the scheduled index job publishes:
- * the same query, run by the same self-hosted indexer on a GitHub runner after each audit round,
- * written to the live-data branch with the block it was taken at. Either way the page degrades
+ * When no indexer is configured, the page reads the bundled, verified historical backfill.
+ * NEXT_PUBLIC_INDEX_SNAPSHOT_URL can select the scheduled live-data snapshot instead.
+ * Every snapshot carries its capture timestamp and indexed block. Either way the page degrades
  * rather than breaks: every reader here returns null on failure.
  */
 export const INDEXER_URL =
-  process.env.NEXT_PUBLIC_INDEXER_URL ?? "http://localhost:8080/v1/graphql";
+  process.env.NEXT_PUBLIC_INDEXER_URL ?? "";
 
 export const SNAPSHOT_URL =
   process.env.NEXT_PUBLIC_INDEX_SNAPSHOT_URL ??
-  "https://raw.githubusercontent.com/Marc-Dvci/BACKSTOP/live-data/indexer/snapshot.json";
+  "/indexer-snapshot.json";
 
 /** How long to wait before deciding the indexer is not there. */
 const TIMEOUT_MS = 2500;
 
 export async function gql<T>(query: string): Promise<T | null> {
+  if (!INDEXER_URL) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -75,14 +76,15 @@ export interface IndexedEndpoint {
   versionId: string;
   status: string;
   settlementEligible: boolean;
-  distanceBps: number;
+  distanceBps: number | null;
+  missingScheduledRounds?: number;
   inWarningRegion: boolean;
   crossed: boolean;
   crossedAtRound: number | null;
   roundsClosed: number;
   scheduledTotal: number;
   voidedTotal: number;
-  voidRateBps: number;
+  voidRateBps: number | null;
   outstandingNotional: string;
   policiesWritten: number;
   policiesSettled: number;
@@ -127,9 +129,11 @@ interface Snapshot {
 
 async function readSnapshot(): Promise<Snapshot | null> {
   try {
-    const res = await fetch(SNAPSHOT_URL, { cache: "no-store" });
+    const res = await fetch(SNAPSHOT_URL, { cache: "no-store", signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
-    return (await res.json()) as Snapshot;
+    const snapshot = (await res.json()) as Snapshot;
+    if (!snapshot.data || !Array.isArray(snapshot.data.ProtocolIndex) || !Array.isArray(snapshot.data.Endpoint) || !Array.isArray(snapshot.data.Policy) || !Number.isFinite(snapshot.takenAt)) return null;
+    return snapshot;
   } catch {
     return null;
   }
@@ -173,6 +177,7 @@ export const INDEX_QUERY = `query BackstopIndex {
     crossedAtRound
     roundsClosed
     scheduledTotal
+    missingScheduledRounds
     voidedTotal
     voidRateBps
     outstandingNotional

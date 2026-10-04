@@ -88,6 +88,8 @@ contract AttestationRegistry {
 
     /// @notice The live version for an endpoint, or zero when none is current.
     mapping(bytes32 => uint256) public currentVersion;
+    /// @notice The first issuer retains authority over an endpoint across retirement.
+    mapping(bytes32 => address) public endpointIssuer;
 
     /// @notice Every version ever issued for an endpoint, oldest first.
     mapping(bytes32 => uint256[]) private _history;
@@ -111,6 +113,8 @@ contract AttestationRegistry {
     event VersionRetired(uint256 indexed versionId, string reason);
     event VersionSuspended(uint256 indexed versionId, string reason);
     event VersionResumed(uint256 indexed versionId);
+    /// @notice Parameters for event-only consumers, including calls routed through CRE.
+    event VersionConfigured(uint256 indexed versionId, int256 boundaryRay, uint32 scheduledPerRound);
 
     error NotGovernance();
     error NotIssuer();
@@ -160,23 +164,32 @@ contract AttestationRegistry {
 
     function issue(IssueParams calldata p) external returns (uint256 versionId) {
         if (!isIssuer[msg.sender]) revert NotIssuer();
-        if (p.stats.m == 0 || p.stats.n == 0 || p.stats.tMax == 0) revert BadParameters("sizes");
+        address endpointOwner = endpointIssuer[p.endpointId];
+        if (endpointOwner != address(0) && endpointOwner != msg.sender) revert NotVersionIssuer();
+        if (p.stats.m == 0 || p.stats.n == 0 || p.stats.nR == 0 || p.stats.tMax == 0) revert BadParameters("sizes");
         if (p.stats.cellsPerRound == 0 || p.stats.cellsPerRound > p.stats.cellCount) {
             revert BadParameters("cellsPerRound");
         }
         if (p.stats.alphaRay <= 0 || p.stats.alphaRay >= BSA1.RAY) revert BadParameters("alpha");
         if (p.stats.lambdaRay <= 0 || p.stats.lambdaRay >= BSA1.RAY) revert BadParameters("lambda");
+        if (p.stats.warningRay <= 0) revert BadParameters("warning");
         if (p.stats.mixtureSize == 0) revert BadParameters("mixtureSize");
+        // AuditRegistry keeps lifetime execution counters in uint32. Reject an otherwise
+        // valid version whose committed campaign would inevitably overflow those counters.
+        if (uint256(p.stats.n) * p.stats.cellsPerRound * p.stats.tMax > type(uint32).max) {
+            revert BadParameters("lifetime executions");
+        }
         if (p.commitments.canonicalArithmeticHash != BSA1.specHash()) {
             revert BadParameters("canonical arithmetic");
         }
         // The p-value floor is 1/(m+1), which bounds the per-round e-value. Sizing m against
         // alpha before coverage is written is a precondition, not an operational choice.
-        if (int256(uint256(p.stats.m + 1)) * p.stats.alphaRay < BSA1.RAY) {
+        if (int256(uint256(p.stats.m) + 1) * p.stats.alphaRay < BSA1.RAY) {
             revert BadParameters("m too small for alpha");
         }
 
         versionId = ++versionCount;
+        endpointIssuer[p.endpointId] = msg.sender;
         Version storage v = _versions[versionId];
         v.issuer = msg.sender;
         v.endpointId = p.endpointId;
@@ -203,6 +216,7 @@ contract AttestationRegistry {
         emit VersionIssued(
             versionId, p.endpointId, msg.sender, p.commitments.attestationDigest, p.unknownFieldMask == 0
         );
+        emit VersionConfigured(versionId, BSA1.ln(BSA1.div(BSA1.RAY, p.stats.alphaRay)), uint32(uint256(p.stats.n) * p.stats.cellsPerRound));
     }
 
     // ---------------------------------------------------------------- lifecycle

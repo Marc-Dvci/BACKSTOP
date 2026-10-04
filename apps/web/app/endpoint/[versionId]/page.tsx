@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EProcessChart, type Trace } from "@/components/EProcessChart";
-import { getEndpoint, getEndpoints, getPolicies, getRounds } from "@/lib/data";
+import { getEndpoint, getEndpoints, getPolicies, getRounds, dataSource } from "@/lib/data";
 import { formatRay, expRay, usdc, short, ago, VERSION_STATUS } from "@/lib/format";
 import { getLiveRounds, getProviderReputation, liveKeyOf, liveState, LIVE_DATA, LIVE_DATA_TREE } from "@/lib/live";
 
@@ -14,6 +14,7 @@ export default async function EndpointPage({ params }: { params: Promise<{ versi
   const { versionId } = await params;
   const id = Number(versionId);
   const endpoint = await getEndpoint(id);
+  const source = await dataSource();
   if (!endpoint) notFound();
 
   const [rounds, policies, all] = await Promise.all([getRounds(id), getPolicies(), getEndpoints()]);
@@ -62,6 +63,7 @@ export default async function EndpointPage({ params }: { params: Promise<{ versi
   return (
     <>
       <div style={{ padding: "36px 0 20px" }}>
+        {source === "snapshot" && <p className="data-notice" role="status">Monad could not be read. This endpoint is from the bundled simulated local demonstration.</p>}
         <Link href="/" style={{ color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 12 }}>
           ← index
         </Link>
@@ -94,7 +96,7 @@ export default async function EndpointPage({ params }: { params: Promise<{ versi
           <EProcessChart
             traces={traces}
             boundaryRay={endpoint.boundaryRay}
-            warningRay={endpoint.warningLogRay > 0n ? BigInt(Math.round(expRay(endpoint.warningLogRay) * 1e27)) : undefined}
+            warningRay={endpoint.warningLogRay > 0n ? endpoint.warningLogRay : undefined}
             tMax={Math.max(rounds.length, 12)}
             height={300}
           />
@@ -184,11 +186,9 @@ export default async function EndpointPage({ params }: { params: Promise<{ versi
               </>
             ) : (
               <p className="prose" style={{ fontSize: 13, margin: 0 }}>
-                The model identity and serving stack behind this endpoint could not be authenticated,
-                so the mixture set M cannot be enumerated. The null protects exactly the
-                configurations in M, so the contract refuses to write coverage here and the endpoint
-                stays in the measurement tier. It is still probed, published and indexed on the same
-                schedule.
+                This version belongs to the measurement tier: published observations and round
+                records support inspection and replay. Coverage is offered for versions with a
+                fully declared model identity, serving envelope and settlement eligibility.
               </p>
             )}
 

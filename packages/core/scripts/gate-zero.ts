@@ -157,6 +157,7 @@ console.log(`Gate Zero  alpha=${ALPHA}  m=${M_CAL}  n=${N_DRAWS}  T_max=${T_MAX}
 console.log(`           ${TRIALS} trials across ${POOLS} independently generated pools\n`);
 
 const results: Record<string, unknown> = {};
+let failed = false;
 for (const [element, label] of [
   ["cfg-a", "A. endpoint serves a vertex of M"],
   ["mix-50", "B. endpoint serves a mixture element of M"],
@@ -165,13 +166,16 @@ for (const [element, label] of [
   const out = runCampaign(element, element);
   const rate = out.crossings / out.trials;
   const [lo, hi] = wilson(out.crossings, out.trials);
-  const verdict = hi <= ALPHA ? "PASS" : rate <= ALPHA ? "PASS" : "FAIL";
+  const verdict = lo > ALPHA ? "FAIL" : hi <= ALPHA ? "PASS" : "INCONCLUSIVE";
+  failed ||= verdict === "FAIL";
   console.log(
     `${label}\n  crossings ${out.crossings}/${out.trials}` +
       `  realised ${rate.toFixed(4)}  95% CI [${lo.toFixed(4)}, ${hi.toFixed(4)}]  nominal ${ALPHA}  ${verdict}`,
   );
-  results[element] = { crossings: out.crossings, trials: out.trials, rate, ci: [lo, hi] };
+  results[element] = { crossings: out.crossings, trials: out.trials, rate, ci: [lo, hi], verdict };
 }
+// A significant overrun must fail CI; a descriptive console verdict alone cannot gate a build.
+process.exitCode = failed ? 1 : 0;
 
 const boundary = formatRay(new RunningProduct(alphaRay).boundaryRay, 6);
 console.log(`\nVille boundary ln(1/alpha) = ${boundary}`);

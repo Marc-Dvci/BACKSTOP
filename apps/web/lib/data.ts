@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import {
   client,
@@ -90,25 +91,40 @@ async function hasLiveData(): Promise<boolean> {
   return liveCheck;
 }
 
-export async function dataSource(): Promise<"chain" | "snapshot"> {
-  return (await hasLiveData()) ? "chain" : "snapshot";
-}
-
-export async function getEndpoints(): Promise<EndpointRow[]> {
+// A render chooses one coherent source for all primary panels. An endpoint read succeeding
+// must not label a failed policy or capital read (and its local mock) as live chain state.
+async function loadDataView() {
   if (await hasLiveData()) {
     try {
-      return await readEndpoints();
-    } catch {
-      /* fall through to the snapshot */
-    }
+      const [endpoints, policies, pool] = await Promise.all([readEndpoints(), readPolicies(), readPool()]);
+      return { source: "chain" as const, endpoints, policies, pool };
+    } catch { /* use the complete, explicitly labelled local snapshot */ }
   }
-  return snap.endpoints.map((e) => ({
-    ...e,
-    versionLogRay: BigInt(e.versionLogRay),
-    boundaryRay: BigInt(e.boundaryRay),
-    warningLogRay: BigInt(e.warningLogRay),
-    alphaRay: BigInt(e.alphaRay),
-  }));
+  return {
+    source: "snapshot" as const,
+    endpoints: snap.endpoints.map((e) => ({ ...e, versionLogRay: BigInt(e.versionLogRay), boundaryRay: BigInt(e.boundaryRay), warningLogRay: BigInt(e.warningLogRay), alphaRay: BigInt(e.alphaRay) })),
+    policies: snap.policies.map((p) => ({ ...p, notional: BigInt(p.notional), premiumEscrowed: BigInt(p.premiumEscrowed), policyLogRay: BigInt(p.policyLogRay), boundaryRay: BigInt(p.boundaryRay) })),
+    pool: { totalAssets: BigInt(snap.pool.totalAssets), reservedCapital: BigInt(snap.pool.reservedCapital), freeCapital: BigInt(snap.pool.freeCapital), maxNotional: BigInt(snap.pool.maxNotional), totalShares: BigInt(snap.pool.totalShares) },
+  };
+}
+
+// Coalesce concurrent page renders. The whole view expires together, so a cached endpoint
+// never silently acquires a simulated pool or policy panel from another read.
+let sharedView: Promise<Awaited<ReturnType<typeof loadDataView>>> | null = null;
+let sharedViewAt = 0;
+const dataView = cache(() => {
+  if (!sharedView || Date.now() - sharedViewAt > 5000) {
+    sharedViewAt = Date.now();
+    sharedView = loadDataView();
+  }
+  return sharedView;
+});
+const roundViews = new Map<number, { at: number; count: number; promise: Promise<RoundRow[]> }>();
+
+export async function dataSource(): Promise<"chain" | "snapshot"> { return (await dataView()).source; }
+
+export async function getEndpoints(): Promise<EndpointRow[]> {
+  return (await dataView()).endpoints;
 }
 
 export async function getEndpoint(versionId: number): Promise<EndpointRow | undefined> {
@@ -117,12 +133,18 @@ export async function getEndpoint(versionId: number): Promise<EndpointRow | unde
 }
 
 export async function getRounds(versionId: number): Promise<RoundRow[]> {
-  if (await hasLiveData()) {
-    try {
-      return await readRounds(versionId);
-    } catch {
-      /* fall through */
+  const view = await dataView();
+  if (view.source === "chain") {
+    const endpoint = view.endpoints.find((e) => e.versionId === versionId);
+    if (!endpoint) return [];
+    let entry = roundViews.get(versionId);
+    if (!entry || entry.count !== endpoint.closedRounds || Date.now() - entry.at > 5000) {
+      const promise = readRounds(versionId, endpoint.closedRounds);
+      entry = { at: Date.now(), count: endpoint.closedRounds, promise };
+      roundViews.set(versionId, entry);
+      promise.catch(() => { if (roundViews.get(versionId)?.promise === promise) roundViews.delete(versionId); });
     }
+    return entry.promise;
   }
   const rows = snap.rounds[String(versionId)] ?? [];
   return rows.map((r) => ({
@@ -134,38 +156,11 @@ export async function getRounds(versionId: number): Promise<RoundRow[]> {
 }
 
 export async function getPolicies(): Promise<PolicyRow[]> {
-  if (await hasLiveData()) {
-    try {
-      return await readPolicies();
-    } catch {
-      /* fall through */
-    }
-  }
-  return snap.policies.map((p) => ({
-    ...p,
-    notional: BigInt(p.notional),
-    premiumEscrowed: BigInt(p.premiumEscrowed),
-    policyLogRay: BigInt(p.policyLogRay),
-    boundaryRay: BigInt(p.boundaryRay),
-  }));
+  return (await dataView()).policies;
 }
 
 export async function getPool(): Promise<PoolRow> {
-  if (await hasLiveData()) {
-    try {
-      return await readPool();
-    } catch {
-      /* fall through */
-    }
-  }
-  const p = snap.pool;
-  return {
-    totalAssets: BigInt(p.totalAssets),
-    reservedCapital: BigInt(p.reservedCapital),
-    freeCapital: BigInt(p.freeCapital),
-    maxNotional: BigInt(p.maxNotional),
-    totalShares: BigInt(p.totalShares),
-  };
+  return (await dataView()).pool;
 }
 
 export function snapshotAge(): number {

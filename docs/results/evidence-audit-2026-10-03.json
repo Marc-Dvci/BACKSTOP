@@ -1,0 +1,177 @@
+{
+  "checkedAt": "2026-10-04T07:51:00.039Z",
+  "chainId": 10143,
+  "source": "https://raw.githubusercontent.com/Marc-Dvci/BACKSTOP/live-data",
+  "rounds": [
+    {
+      "version": 5,
+      "round": 0,
+      "completions": 768,
+      "closedAt": 1790321335,
+      "eRoundRay": "1154417441649085142989038609",
+      "cumulativeLogRay": "143595837207015484494083585",
+      "beaconRound": 32505949,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 5,
+      "round": 1,
+      "completions": 768,
+      "closedAt": 1790322380,
+      "eRoundRay": "852001304560771239623084808",
+      "cumulativeLogRay": "-16571383772363951640586669",
+      "beaconRound": 32506295,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 5,
+      "round": 2,
+      "completions": 768,
+      "closedAt": 1790322544,
+      "eRoundRay": "975789767397845307935473663",
+      "cumulativeLogRay": "-41079501800112524156132429",
+      "beaconRound": 32506356,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 5,
+      "round": 3,
+      "completions": 768,
+      "closedAt": 1790322709,
+      "eRoundRay": "716664048703087799275711927",
+      "cumulativeLogRay": "-374227601307758534487821050",
+      "beaconRound": 32506410,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 5,
+      "round": 4,
+      "completions": 768,
+      "closedAt": 1790322876,
+      "eRoundRay": "899525380362556919418516887",
+      "cumulativeLogRay": "-480115611218933690885747086",
+      "beaconRound": 32506467,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 5,
+      "round": 5,
+      "completions": 768,
+      "closedAt": 1790323046,
+      "eRoundRay": "1178597890253740151901868833",
+      "cumulativeLogRay": "-315790107843200518389560371",
+      "beaconRound": 32506523,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 5,
+      "round": 6,
+      "completions": 768,
+      "closedAt": 1790323232,
+      "eRoundRay": "766387105219865969444345849",
+      "cumulativeLogRay": "-581857985440885930430684563",
+      "beaconRound": 32506582,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 6,
+      "round": 0,
+      "completions": 768,
+      "closedAt": 1790321514,
+      "eRoundRay": "599138544927389935724305214",
+      "cumulativeLogRay": "-512262413909132587941258169",
+      "beaconRound": 32506016,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 6,
+      "round": 1,
+      "completions": 768,
+      "closedAt": 1790321651,
+      "eRoundRay": "876284870823465931159867505",
+      "cumulativeLogRay": "-644326459815356434547093705",
+      "beaconRound": 32506059,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 6,
+      "round": 2,
+      "completions": 768,
+      "closedAt": 1790321791,
+      "eRoundRay": "1182323288585770225934669318",
+      "cumulativeLogRay": "-476845068426600960380718902",
+      "beaconRound": 32506107,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 6,
+      "round": 3,
+      "completions": 768,
+      "closedAt": 1790321915,
+      "eRoundRay": "3559598871684447137430243037",
+      "cumulativeLogRay": "792802793595732362891996536",
+      "beaconRound": 32506157,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 6,
+      "round": 4,
+      "completions": 768,
+      "closedAt": 1790322020,
+      "eRoundRay": "3748243467907429778082952408",
+      "cumulativeLogRay": "2114090115282475126142278634",
+      "beaconRound": 32506194,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    },
+    {
+      "version": 6,
+      "round": 5,
+      "completions": 768,
+      "closedAt": 1790322119,
+      "eRoundRay": "2742932503973283257738065795",
+      "cumulativeLogRay": "3123117720290381793322091116",
+      "beaconRound": 32506228,
+      "beaconSignatureVerified": true,
+      "checks": "passed"
+    }
+  ],
+  "completions": 9984,
+  "policies": [
+    {
+      "id": 5,
+      "version": 6,
+      "status": "settled",
+      "notional": "60000000000"
+    },
+    {
+      "id": 6,
+      "version": 6,
+      "status": "settled",
+      "notional": "30000000000"
+    },
+    {
+      "id": 7,
+      "version": 6,
+      "status": "settled",
+      "notional": "15000000000"
+    }
+  ],
+  "usage": {
+    "samples": 9984,
+    "promptTokens": 646395,
+    "completionTokens": 20751
+  },
+  "scope": "Issuance commitments, opened seed shares, quicknet BLS beacons, revealed reference roots, canonical arithmetic, cumulative logs, issuer-recorded response transcripts and recorded policy settlement verified against Monad testnet."
+}
