@@ -1,7 +1,7 @@
 {
-  "takenAt": 1791269455,
-  "block": 68619073,
-  "run": "https://github.com/Marc-Dvci/BACKSTOP/actions/runs/37425873768",
+  "takenAt": 1791293194,
+  "block": 68696758,
+  "run": "https://github.com/Marc-Dvci/BACKSTOP/actions/runs/37470612499",
   "query": "query BackstopIndex {\n  ProtocolIndex {\n    endpointsMeasured\n    endpointsSettlementEligible\n    endpointsCrossed\n    endpointsInWarning\n    roundsClosed\n    totalScheduledExecutions\n    totalVoidedExecutions\n    policiesWritten\n    policiesSettled\n    totalNotionalWritten\n    totalPaidOut\n    totalPremiumEarned\n    lossRatioBps\n    detectionDelaySum\n    detectionDelayCount\n    maxBatchSize\n    maxBatchGas\n    updatedAt\n  }\n  Endpoint(order_by: { versionId: asc }) {\n    id\n    versionId\n    status\n    settlementEligible\n    distanceBps\n    inWarningRegion\n    crossed\n    crossedAtRound\n    roundsClosed\n    scheduledTotal\n    missingScheduledRounds\n    voidedTotal\n    voidRateBps\n    outstandingNotional\n    policiesWritten\n    policiesSettled\n    totalPaidOut\n    totalPremiumEarned\n  }\n  Policy(order_by: { policyId: asc }) {\n    id\n    policyId\n    status\n    notional\n    premium\n    startRound\n    settledAtRound\n    detectionDelayRounds\n    paidOut\n  }\n}",
   "data": {
     "ProtocolIndex": [
