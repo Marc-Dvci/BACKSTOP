@@ -32,7 +32,7 @@ const TRANSITION = [
   { name: "eRoundRay", type: "int256" },
 ] as const;
 
-export async function runRound(runtime: Runtime<Config>): Promise<string> {
+async function runRound(runtime: Runtime<Config>): Promise<string> {
   const cfg = runtime.config;
   for (const address of [cfg.receiver, cfg.auditRegistry])
     if (!/^0x[0-9a-fA-F]{40}$/.test(address) || /^0x0{40}$/.test(address))

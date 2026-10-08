@@ -39,7 +39,7 @@ forge test --root contracts --match-contract CREReceiverTest -vv
 
 cd cre
 cre login
-cre workflow simulate backstop-audit --target monad-testnet-settings
+cre workflow simulate ./backstop-audit --target monad-testnet-settings
 ```
 
 The scenario harness checks interrupted runs, producer delays, publication ordering, unique executions, changed roots, forged reference slices, cumulative logs, lifetime caps and receiver failures. Contract tests exercise the report metadata and each receiver guard.

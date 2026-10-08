@@ -44,3 +44,6 @@ docs/results/live/*.json
 # The indexer log cache travels on the live-data branch
 indexer/rpc-cache.json
 dist-npm/
+
+# cre-compile output
+cre/.build/

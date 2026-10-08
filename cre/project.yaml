@@ -3,10 +3,8 @@
 # The audit runs on Monad testnet, which the CRE CLI lists from v1.30.0 and the TypeScript SDK
 # carries a chain selector for.
 monad-testnet-settings:
-  user-workflow:
+  account:
     workflow-owner-address: ${CRE_WORKFLOW_OWNER}
-  logging:
-    seth-docs-url: ""
   rpcs:
     - chain-name: monad-testnet
       url: ${MONAD_TESTNET_RPC}
