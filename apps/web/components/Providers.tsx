@@ -9,17 +9,14 @@ import { InjectedWalletProvider } from "./wallet";
 /**
  * Dynamic supplies the wallet layer.
  *
- * Three primitives, each doing real work rather than sitting behind a login button:
+ * It is the signer for every transaction the app sends, not a login button:
  *
  *   embedded wallet  a buyer reaches coverage with an email and never handles a seed phrase.
  *                    The passkey authorises the policy and the embedded wallet pays the
  *                    premium and receives the payout, so the two credentials do different
  *                    jobs: one proves intent, the other moves money.
- *   server wallet    the issuer runs the audit cadence unattended, opening, sealing and
- *                    closing each round and publishing the claim root at a crossing.
- *   agent wallet     an agent operator delegates evidence submission and claim redemption to
- *                    a scoped key, so an unattended producer publishes transcripts and
- *                    redeems without ever holding the buyer's account.
+ *   external wallet  a buyer who already has a wallet connects it through the same flow, and
+ *                    the app sends the same transactions through it.
  *
  * The chain is Monad testnet, declared here so the wallet lands on the right network without
  * the user switching by hand.
