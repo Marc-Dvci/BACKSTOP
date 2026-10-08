@@ -11,6 +11,8 @@ It publishes evidence anyone can replay and demonstrates collateralised coverage
 [Developer guide](https://backstop-smoky.vercel.app/docs) ·
 [Method](https://backstop-smoky.vercel.app/method)
 
+**Videos:** [technical demo, 2:55](https://youtu.be/nlv-WMvZcnE) · [founder pitch, 1:52](https://youtu.be/sVpiR5unvmo)
+
 ![BACKSTOP cover](apps/web/public/cover.png)
 
 ## The result

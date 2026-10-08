@@ -4,6 +4,8 @@
 
 **Track:** Trust, Identity & AI Infrastructure · **Live:** https://backstop-smoky.vercel.app/judges · **Code:** https://github.com/Marc-Dvci/BACKSTOP
 
+**Videos:** [technical demo](https://youtu.be/nlv-WMvZcnE) · [founder pitch](https://youtu.be/sVpiR5unvmo)
+
 ## What it is
 
 BACKSTOP is a verification primitive for hosted AI inference. Before testing begins, the issuer commits the endpoint's declared behavioural envelope, sampling rules, reference root and decision boundary on Monad. Each audit round seals the response transcripts onchain first, then reveals the reference slice with Merkle proofs. Anyone can recompute the verdict in the browser, with the CLI or in Solidity, using the same canonical integer arithmetic. Collateralised coverage is the reference application: a policy pays out from a fully reserved pool when the committed test crosses.
