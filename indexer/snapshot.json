@@ -1,7 +1,7 @@
 {
-  "takenAt": 1791486068,
-  "block": 69332916,
-  "run": "https://github.com/Marc-Dvci/BACKSTOP/actions/runs/37828556958",
+  "takenAt": 1791528012,
+  "block": 69471064,
+  "run": "https://github.com/Marc-Dvci/BACKSTOP/actions/runs/37894571941",
   "query": "query BackstopIndex {\n  ProtocolIndex {\n    endpointsMeasured\n    endpointsSettlementEligible\n    endpointsCrossed\n    endpointsInWarning\n    roundsClosed\n    totalScheduledExecutions\n    totalVoidedExecutions\n    policiesWritten\n    policiesSettled\n    totalNotionalWritten\n    totalPaidOut\n    totalPremiumEarned\n    lossRatioBps\n    detectionDelaySum\n    detectionDelayCount\n    maxBatchSize\n    maxBatchGas\n    updatedAt\n  }\n  Endpoint(order_by: { versionId: asc }) {\n    id\n    versionId\n    status\n    settlementEligible\n    distanceBps\n    inWarningRegion\n    crossed\n    crossedAtRound\n    roundsClosed\n    scheduledTotal\n    missingScheduledRounds\n    voidedTotal\n    voidRateBps\n    outstandingNotional\n    policiesWritten\n    policiesSettled\n    totalPaidOut\n    totalPremiumEarned\n  }\n  Policy(order_by: { policyId: asc }) {\n    id\n    policyId\n    status\n    notional\n    premium\n    startRound\n    settledAtRound\n    detectionDelayRounds\n    paidOut\n  }\n}",
   "data": {
     "ProtocolIndex": [
@@ -13,9 +13,9 @@
         "roundsClosed": 31,
         "totalScheduledExecutions": 23808,
         "totalVoidedExecutions": 0,
-        "policiesWritten": 7,
+        "policiesWritten": 8,
         "policiesSettled": 7,
-        "totalNotionalWritten": "590000000000",
+        "totalNotionalWritten": "615000000000",
         "totalPaidOut": "590000000000",
         "totalPremiumEarned": "1155450",
         "lossRatioBps": "5106235665",
@@ -23,7 +23,7 @@
         "detectionDelayCount": 7,
         "maxBatchSize": 4,
         "maxBatchGas": "734749",
-        "updatedAt": "1790323232"
+        "updatedAt": "1791490643"
       }
     ],
     "Endpoint": [
@@ -121,8 +121,8 @@
         "missingScheduledRounds": 0,
         "voidedTotal": 0,
         "voidRateBps": 0,
-        "outstandingNotional": "0",
-        "policiesWritten": 0,
+        "outstandingNotional": "25000000000",
+        "policiesWritten": 1,
         "policiesSettled": 0,
         "totalPaidOut": "0",
         "totalPremiumEarned": "0"
@@ -225,6 +225,17 @@
         "settledAtRound": 5,
         "detectionDelayRounds": 4,
         "paidOut": "15000000000"
+      },
+      {
+        "id": "8",
+        "policyId": "8",
+        "status": "active",
+        "notional": "25000000000",
+        "premium": "1500000000",
+        "startRound": 9,
+        "settledAtRound": null,
+        "detectionDelayRounds": null,
+        "paidOut": null
       }
     ]
   }
